@@ -26,16 +26,28 @@ include_directories(include
 
 set(HDRS
     include/cloud_merge.h
-    include/cloud_merge_node.h)
+    include/cloud_merge_node.h
+    include/batch_processor.h)
 
 set(SRCS
     src/cloud_merge.cpp
     src/cloud_merge_node.cpp
-    src/main.cpp)
+    src/batch_processor.cpp
+    )
 
-add_executable(cloud_merge ${HDRS} ${SRCS})
+add_executable(cloud_merge src/main.cpp ${HDRS} ${SRCS})
+add_executable(batch_cloud_merge src/batch_main.cpp ${HDRS} ${SRCS})
 
  target_link_libraries(cloud_merge
+   ${catkin_LIBRARIES}
+   ${PCL_LIBRARIES}
+   ${QT_LIBRARIES}
+   ${Boost_LIBRARIES}
+   mongoclient
+   message_store
+ )
+
+ target_link_libraries(batch_cloud_merge
    ${catkin_LIBRARIES}
    ${PCL_LIBRARIES}
    ${QT_LIBRARIES}

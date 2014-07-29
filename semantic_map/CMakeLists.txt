@@ -74,6 +74,8 @@ set(SRCS
 add_library(semantic_map ${HDRS} ${SRCS})
 add_executable(semantic_map_node include/semantic_map_node.h src/semantic_map_node.cpp src/semantic_map_main.cpp)
 
+add_executable(batch_semantic_map include/semantic_map_node.h src/semantic_map_node.cpp src/batch_main.cpp)
+
 add_dependencies(semantic_map primitive_extraction_generate_messages_cpp strands_perception_msgs_generate_messages_cpp)
 add_dependencies(semantic_map_node primitive_extraction_generate_messages_cpp strands_perception_msgs_generate_messages_cpp)
 
@@ -86,3 +88,11 @@ add_dependencies(semantic_map_node primitive_extraction_generate_messages_cpp st
    message_store
   )
 
+ target_link_libraries(batch_semantic_map
+   mongoclient
+   ${catkin_LIBRARIES}
+   ${PCL_LIBRARIES}
+   ${QT_LIBRARIES}
+   ${Boost_LIBRARIES}
+   message_store
+  )
