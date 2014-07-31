@@ -517,13 +517,15 @@ void CloudMergeNode<PointType>::controlCallback(const std_msgs::String& controlS
                 m_RosPublisherIntermediateDepthCamInfo.publish(m_CloudMerge.m_IntermediateFilteredDepthCamInfo);
 
                 // save images to disk using PCL-LZF
+                boost::posix_time::ptime time_now = boost::posix_time::second_clock::local_time();
+                std::string time_string = boost::posix_time::to_iso_string (time_now);
                 pcl::io::LZFRGB24ImageWriter lrgb;
                 pcl::io::LZFDepth16ImageWriter ld;
                 static int file_id=0;
                 std::stringstream filename1, filename2, filename3;
-                filename1 << "rgb_"<<std::setfill('0')<<std::setw(4)<<file_id<<".pclzf";
-                filename2 << "depth_"<<std::setfill('0')<<std::setw(4)<<file_id<<".pclzf";
-                filename3 << "params_"<<std::setfill('0')<<std::setw(4)<<file_id<<".xml";
+                filename1 << "frame_"<<time_string<<"_rgb.pclzf";
+                filename2 << "frame_"<<time_string<<"_depth.pclzf";
+                filename3 << "frame_"<<time_string<<".xml";
                 lrgb.write (reinterpret_cast<const char*> (&m_CloudMerge.m_IntermediateFilteredRGBImage->data[0]), m_CloudMerge.m_IntermediateFilteredRGBImage->width, m_CloudMerge.m_IntermediateFilteredRGBImage->height, filename1.str ());
                 ld.write (reinterpret_cast<const char*> (&m_CloudMerge.m_IntermediateFilteredDepthImage->data[0]), m_CloudMerge.m_IntermediateFilteredDepthImage->width, m_CloudMerge.m_IntermediateFilteredDepthImage->height, filename2.str ());
 
@@ -536,7 +538,7 @@ void CloudMergeNode<PointType>::controlCallback(const std_msgs::String& controlS
                 ld.writeParameters(depthParams,filename3.str());
 
                 file_id++;
-                ROS_INFO_STREAM("Saved rgb and depth images using PCL-LZF"<<filename1<<"  "<<filename2);
+                ROS_INFO_STREAM("Saved rgb and depth images using PCL-LZF "<<filename1.str()<<"  "<<filename2.str());
 
                 //            ROS_INFO_STREAM("Transformed clod aquisition time "<<transformed_cloud->header.stamp<<"  and frame "<<transformed_cloud->header.frame_id<<"  and points "<<transformed_cloud->points.size());
 
