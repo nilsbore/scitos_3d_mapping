@@ -517,7 +517,7 @@ void CloudMergeNode<PointType>::controlCallback(const std_msgs::String& controlS
                 m_RosPublisherIntermediateDepthCamInfo.publish(m_CloudMerge.m_IntermediateFilteredDepthCamInfo);
 
                 // save images to disk using PCL-LZF
-                boost::posix_time::ptime time_now = boost::posix_time::second_clock::local_time();
+                boost::posix_time::ptime time_now = boost::posix_time::microsec_clock::local_time();
                 std::string time_string = boost::posix_time::to_iso_string (time_now);
                 pcl::io::LZFRGB24ImageWriter lrgb;
                 pcl::io::LZFDepth16ImageWriter ld;
