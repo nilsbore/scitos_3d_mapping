@@ -30,6 +30,7 @@
 #include <pcl/point_types.h>
 #include <pcl_ros/transforms.h>
 #include <pcl/io/pcd_io.h>
+#include <pcl/io/lzf_image_io.h>
 #include <pcl_conversions/pcl_conversions.h>
 
 #include <boost/date_time/posix_time/posix_time.hpp>
@@ -514,6 +515,17 @@ void CloudMergeNode<PointType>::controlCallback(const std_msgs::String& controlS
                 m_RosPublisherIntermediateDepth.publish(m_CloudMerge.m_IntermediateFilteredDepthImage);
                 m_RosPublisherIntermediateRGB.publish(m_CloudMerge.m_IntermediateFilteredRGBImage);
                 m_RosPublisherIntermediateDepthCamInfo.publish(m_CloudMerge.m_IntermediateFilteredDepthCamInfo);
+
+                // save images to disk using PCL-LZF
+                pcl::io::LZFRGB24ImageWriter lrgb;
+                static int file_id=0;
+                std::stringstream filename1, filename2;
+                filename1 << "rgb_"<<std::setfill('0')<<std::setw(4)<<file_id<<".pclzf";
+                filename2 << "depth_"<<std::setfill('0')<<std::setw(4)<<file_id<<".pclzf";
+                lrgb.write (reinterpret_cast<const char*> (&m_CloudMerge.m_IntermediateFilteredRGBImage->data[0]), m_CloudMerge.m_IntermediateFilteredRGBImage->width, m_CloudMerge.m_IntermediateFilteredRGBImage->height, filename1.str ());
+                lrgb.write (reinterpret_cast<const char*> (&m_CloudMerge.m_IntermediateFilteredDepthImage->data[0]), m_CloudMerge.m_IntermediateFilteredDepthImage->width, m_CloudMerge.m_IntermediateFilteredDepthImage->height, filename1.str ());
+                file_id++;
+                ROS_INFO_STREAM("Saved rgb and depth images using PCL-LZF"<<filename1<<"  "<<filename2);
 
                 //            ROS_INFO_STREAM("Transformed clod aquisition time "<<transformed_cloud->header.stamp<<"  and frame "<<transformed_cloud->header.frame_id<<"  and points "<<transformed_cloud->points.size());
 
