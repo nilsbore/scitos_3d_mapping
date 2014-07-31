@@ -518,12 +518,23 @@ void CloudMergeNode<PointType>::controlCallback(const std_msgs::String& controlS
 
                 // save images to disk using PCL-LZF
                 pcl::io::LZFRGB24ImageWriter lrgb;
+                pcl::io::LZFDepth16ImageWriter ld;
                 static int file_id=0;
-                std::stringstream filename1, filename2;
+                std::stringstream filename1, filename2, filename3;
                 filename1 << "rgb_"<<std::setfill('0')<<std::setw(4)<<file_id<<".pclzf";
                 filename2 << "depth_"<<std::setfill('0')<<std::setw(4)<<file_id<<".pclzf";
+                filename3 << "params_"<<std::setfill('0')<<std::setw(4)<<file_id<<".xml";
                 lrgb.write (reinterpret_cast<const char*> (&m_CloudMerge.m_IntermediateFilteredRGBImage->data[0]), m_CloudMerge.m_IntermediateFilteredRGBImage->width, m_CloudMerge.m_IntermediateFilteredRGBImage->height, filename1.str ());
-                lrgb.write (reinterpret_cast<const char*> (&m_CloudMerge.m_IntermediateFilteredDepthImage->data[0]), m_CloudMerge.m_IntermediateFilteredDepthImage->width, m_CloudMerge.m_IntermediateFilteredDepthImage->height, filename1.str ());
+                ld.write (reinterpret_cast<const char*> (&m_CloudMerge.m_IntermediateFilteredDepthImage->data[0]), m_CloudMerge.m_IntermediateFilteredDepthImage->width, m_CloudMerge.m_IntermediateFilteredDepthImage->height, filename2.str ());
+
+                pcl::io::CameraParameters rgbParams, depthParams;
+                rgbParams.focal_length_x = 525.0; rgbParams.focal_length_y = 525.0;
+                rgbParams.principal_point_x = 320; rgbParams.principal_point_y = 240;
+                depthParams = rgbParams;
+
+                lrgb.writeParameters(rgbParams,filename3.str());
+                ld.writeParameters(depthParams,filename3.str());
+
                 file_id++;
                 ROS_INFO_STREAM("Saved rgb and depth images using PCL-LZF"<<filename1<<"  "<<filename2);
 
