@@ -34,10 +34,16 @@
 
 #include <boost/date_time/posix_time/posix_time.hpp>
 
+// OpenCV
+#include <opencv2/core/eigen.hpp>
+
 #include "cloud_merge.h"
 #include "room.h"
 #include "roomXMLparser.h"
 #include "semanticMapSummaryParser.h"
+
+// fine mapping
+#include "scan.h"
 
 template <class PointType>
 class CloudMergeNode {
@@ -79,6 +85,10 @@ public:
     image_transport::SubscriberFilter                                           m_DepthSubscriber, m_RGBSubscriber;
     message_filters::Subscriber<sensor_msgs::CameraInfo>                        m_CameraInfoSubscriber;
     boost::shared_ptr<image_transport::ImageTransport>                          m_RGB_it, m_Depth_it;
+
+    // fine mapping
+    std::vector<scan* >                                                         m_vAllScans;
+    std::vector<CloudPtr>                                                       m_vAllClouds; // local frame of reference
 
 private:
 
@@ -494,32 +504,64 @@ void CloudMergeNode<PointType>::controlCallback(const std_msgs::String& controlS
                 sensor_msgs::PointCloud2 temp_msg;
                 pcl::toROSMsg(*transformed_cloud, temp_msg);
                 temp_msg.header = pcl_conversions::fromPCL(transformed_cloud->header);
-                m_PublisherIntermediateCloud.publish(temp_msg); // publish in the local frame of reference
+                m_PublisherIntermediateCloud.publish(temp_msg); // publish in the local frame of reference               
 
                 m_TransformListener.waitForTransform("/map", transformed_cloud->header.frame_id,temp_msg.header.stamp, ros::Duration(20.0) );
                 m_TransformListener.lookupTransform("/map", transformed_cloud->header.frame_id,
                                                     temp_msg.header.stamp, transform);
 
+
+                // convert to fine mapping datatypes
+                Eigen::Matrix4f eigen_transform;
+                Eigen::Matrix3f eigen_rot;
+                Eigen::Vector3f eigen_translation;
+                Eigen::Matrix3f eigen_K;
+                image_geometry::PinholeCameraModel aCameraModel;
+                aCameraModel.fromCameraInfo(m_CloudMerge.m_IntermediateFilteredDepthCamInfo);
+
+                pcl_ros::transformAsMatrix (transform, eigen_transform);
+                eigen_rot = eigen_transform.topLeftCorner<3, 3>();
+                eigen_translation = eigen_transform.block<3, 1>(0, 3);
+                cv2eigen(aCameraModel.intrinsicMatrix(),eigen_K);
+                CloudPtr scan_cloud;
+                *scan_cloud= *transformed_cloud;
+
+                m_vAllScans.push_back(new scan(*scan_cloud, eigen_translation,eigen_rot,eigen_K));
+                m_vAllClouds.push_back(scan_cloud);
+
+
+                // add intermediate cloud (local frame of ref) and transform to semantic room
+                int intCloudId;
+                if (m_CloudMerge.m_IntermediateFilteredDepthCamInfo)
+                {
+                    image_geometry::PinholeCameraModel cloudCameraParams;
+                    cloudCameraParams.fromCameraInfo(m_CloudMerge.m_IntermediateFilteredDepthCamInfo);
+                    intCloudId = aSemanticRoom.addIntermediateRoomCloud(transformed_cloud, transform,cloudCameraParams);
+                } else {
+                    intCloudId = aSemanticRoom.addIntermediateRoomCloud(transformed_cloud, transform);
+                }
+
                 m_CloudMerge.transformIntermediateCloud(transform,"/map");
 
-                transformed_cloud = m_CloudMerge.getIntermediateCloud();
-
-                // add intermediate cloud and transform to semantic room
-                int intCloudId = aSemanticRoom.addIntermediateRoomCloud(transformed_cloud, transform);
-
+                transformed_cloud = m_CloudMerge.getIntermediateCloud();                
 
                 sensor_msgs::PointCloud2 msg_cloud;
                 pcl::toROSMsg(*transformed_cloud, msg_cloud);
 
-                m_RosPublisherIntermediateDepth.publish(m_CloudMerge.m_IntermediateFilteredDepthImage);
-                m_RosPublisherIntermediateRGB.publish(m_CloudMerge.m_IntermediateFilteredRGBImage);
-                m_RosPublisherIntermediateDepthCamInfo.publish(m_CloudMerge.m_IntermediateFilteredDepthCamInfo);
+                if (m_CloudMerge.m_IntermediateFilteredDepthImage)
+                {
+                    m_RosPublisherIntermediateDepth.publish(m_CloudMerge.m_IntermediateFilteredDepthImage);
+                }
+                if (m_CloudMerge.m_IntermediateFilteredRGBImage)
+                {
+                    m_RosPublisherIntermediateRGB.publish(m_CloudMerge.m_IntermediateFilteredRGBImage);
+                }
+                if (m_CloudMerge.m_IntermediateFilteredDepthCamInfo)
+                {
+                    m_RosPublisherIntermediateDepthCamInfo.publish(m_CloudMerge.m_IntermediateFilteredDepthCamInfo);
+                }
 
-                //            ROS_INFO_STREAM("Transformed clod aquisition time "<<transformed_cloud->header.stamp<<"  and frame "<<transformed_cloud->header.frame_id<<"  and points "<<transformed_cloud->points.size());
-
-                // add intermediate point cloud to the database
-                // first create intermediate cloud name
-
+                //            ROS_INFO_STREAM("Transformed cloud aquisition time "<<transformed_cloud->header.stamp<<"  and frame "<<transformed_cloud->header.frame_id<<"  and points "<<transformed_cloud->points.size());
             }
 
         }

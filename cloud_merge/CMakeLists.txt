@@ -4,7 +4,7 @@ project(cloud_merge)
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
-find_package(catkin REQUIRED COMPONENTS roscpp rospy std_msgs sensor_msgs tf pcl_ros semantic_map image_geometry image_transport qt_build cloud_register ros_datacentre_cpp_client)
+find_package(catkin REQUIRED COMPONENTS roscpp rospy std_msgs sensor_msgs tf pcl_ros semantic_map image_geometry image_transport qt_build cloud_register ros_datacentre_cpp_client mapping_refinement)
 
 set(CMAKE_CXX_FLAGS "-mno-avx -O4 -fPIC -std=c++0x -fpermissive")
 
@@ -13,24 +13,27 @@ include_directories(${PCL_INCLUDE_DIRS})
 link_directories(${PCL_LIBRARY_DIRS})
 add_definitions(${PCL_DEFINITIONS})
 
+
 rosbuild_prepare_qt4(QtCore QtXml)
 
 catkin_package(
    INCLUDE_DIRS include
 )
 
-include_directories(include
-  ${catkin_INCLUDE_DIRS}
-)
+include_directories(include /opt/ros/hydro/include/ ${catkin_INCLUDE_DIRS} ${Boost_INCLUDE_DIRS})
+
+link_directories(/opt/ros/hydro/lib/)
 
 
 set(HDRS
     include/cloud_merge.h
-    include/cloud_merge_node.h)
+    include/cloud_merge_node.h
+    include/fine_mapping.h)
 
 set(SRCS
     src/cloud_merge.cpp
     src/cloud_merge_node.cpp
+    src/fine_mapping.cpp
     src/main.cpp)
 
 add_executable(cloud_merge ${HDRS} ${SRCS})
@@ -42,4 +45,12 @@ add_executable(cloud_merge ${HDRS} ${SRCS})
    ${Boost_LIBRARIES}
    mongoclient
    message_store
+   fine_registration
+   fine_vertex
+   fine_edge
+   asynch_visualizer
+   g2o_core
+   g2o_types_slam3d
+   g2o_solver_csparse
+   g2o_stuff
  )

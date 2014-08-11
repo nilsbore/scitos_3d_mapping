@@ -122,6 +122,7 @@ public:
       // Set the maximum distance between two correspondences (src<->tgt) to 10cm
       // Note: adjust this based on the size of your datasets
       reg.setMaxCorrespondenceDistance (0.1);
+      reg.setEuclideanFitnessEpsilon(1);
       // Set the point representation
       reg.setPointRepresentation (boost::make_shared<const MyPointRepresentation> (point_representation));
 

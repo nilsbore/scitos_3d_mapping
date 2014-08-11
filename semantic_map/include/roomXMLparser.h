@@ -10,7 +10,11 @@
 #include <boost/date_time/posix_time/posix_time.hpp>
 #include "tf/tf.h"
 
+#include <image_geometry/pinhole_camera_model.h>
+
 #include "room.h"
+
+#include <opencv2/core/eigen.hpp>
 
 // QT
 #include <QFile>
@@ -229,6 +233,7 @@ public:
         xmlWriter->writeStartElement("RoomIntermediateClouds");
         std::vector<CloudPtr> roomIntermediateClouds = aRoom.getIntermediateClouds();
         std::vector<tf::StampedTransform> roomIntermediateCloudTransforms = aRoom.getIntermediateCloudTransforms();
+        std::vector<image_geometry::PinholeCameraModel> roomIntermediateCloudCameraParameters = aRoom.getIntermediateCloudCameraParameters();
         std::vector<bool>   roomIntermediateCloudsLoaded = aRoom.getIntermediateCloudsLoaded();
 //        if (roomIntermediateClouds.size() != roomIntermediateCloudTransforms.size())
 //        {
@@ -311,6 +316,18 @@ public:
 
 //                ROS_INFO_STREAM("TF message "<<msg<<"\nStamp "<<msg.header.stamp.sec<<"."<<msg.header.stamp.nsec);
                 xmlWriter->writeEndElement(); // RoomIntermediateCloudTransform
+
+                xmlWriter->writeStartElement("RoomIntermediateCameraParameters");
+                std::stringstream ssCP;
+                image_geometry::PinholeCameraModel aCameraModel = roomIntermediateCloudCameraParameters[i];
+                Eigen::Matrix3f eigen_K;
+                cv2eigen(aCameraModel.intrinsicMatrix(),eigen_K);
+                ssCP<<eigen_K;
+                std::cout<<"Camera parameters K matrix as string "<<ssCP<<std::endl;
+
+
+                xmlWriter->writeEndElement(); // RoomIntermediateCameraParameters
+
                 xmlWriter->writeEndElement(); // RoomIntermediateCloud
             }
 //        }

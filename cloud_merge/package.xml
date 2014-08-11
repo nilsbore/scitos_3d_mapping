@@ -22,6 +22,7 @@
   <build_depend>tf</build_depend>
   <build_depend>pcl_ros</build_depend>
   <build_depend>semantic_map</build_depend>
+  <build_depend>mapping_refinement</build_depend>
   <build_depend>image_geometry</build_depend>
   <build_depend>libqt4-dev</build_depend>
   <build_depend>cloud_register</build_depend>
@@ -34,6 +35,7 @@
   <run_depend>tf</run_depend>
   <run_depend>pcl_ros</run_depend>
   <run_depend>semantic_map</run_depend>
+  <run_depend>mapping_refinement</run_depend>
   <run_depend>libqt4-dev</run_depend>
   <run_depend>ros-hydro-qt-ros</run_depend>
 
