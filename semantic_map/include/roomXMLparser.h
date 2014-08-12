@@ -317,13 +317,60 @@ public:
 //                ROS_INFO_STREAM("TF message "<<msg<<"\nStamp "<<msg.header.stamp.sec<<"."<<msg.header.stamp.nsec);
                 xmlWriter->writeEndElement(); // RoomIntermediateCloudTransform
 
+                Eigen::IOFormat CommaInitFmt(Eigen::StreamPrecision, Eigen::DontAlignCols, ", ", ", ", "", "", " << ", "");
                 xmlWriter->writeStartElement("RoomIntermediateCameraParameters");
-                std::stringstream ssCP;
+
                 image_geometry::PinholeCameraModel aCameraModel = roomIntermediateCloudCameraParameters[i];
-                Eigen::Matrix3f eigen_K;
-                cv2eigen(aCameraModel.intrinsicMatrix(),eigen_K);
-                ssCP<<eigen_K;
-                std::cout<<"Camera parameters K matrix as string "<<ssCP.str().c_str()<<std::endl;
+                const sensor_msgs::CameraInfo & camInfo = aCameraModel.cameraInfo();
+                std::stringstream ssCP;
+
+
+                // size
+                cv::Size imageSize = aCameraModel.fullResolution();
+                xmlWriter->writeAttribute("width",QString::number(camInfo.width));
+                xmlWriter->writeAttribute("height",QString::number(camInfo.height));
+                xmlWriter->writeAttribute("distortion_model",QString(camInfo.distortion_model.c_str()));
+                xmlWriter->writeAttribute("frame_id",QString(camInfo.header.frame_id.c_str()));
+
+                // K matrix
+                QString KString;
+                for (size_t j=0; j<9;j++)
+                {
+                    KString+=QString::number(camInfo.K[j]);
+                    KString+=" ";
+                }
+                xmlWriter->writeAttribute("K",KString);
+                ROS_INFO_STREAM("K matrix "<<KString.toStdString());
+
+                // D matrix
+                QString DString;
+                for (size_t j=0; j<5;j++)
+                {
+                    DString+=QString::number(camInfo.D[j]);
+                    DString+=" ";
+                }
+                xmlWriter->writeAttribute("D",DString);
+                ROS_INFO_STREAM("D matrix "<<DString.toStdString());
+
+                // R matrix
+                QString RString;
+                for (size_t j=0; j<9;j++)
+                {
+                    RString+=QString::number(camInfo.R[j]);
+                    RString+=" ";
+                }
+                xmlWriter->writeAttribute("R",RString);
+                ROS_INFO_STREAM("R matrix "<<RString.toStdString());
+
+                // P matrix
+                QString PString;
+                for (size_t j=0; j<12;j++)
+                {
+                    PString+=QString::number(camInfo.P[j]);
+                    PString+=" ";
+                }
+                xmlWriter->writeAttribute("P",PString);
+                ROS_INFO_STREAM("P matrix "<<PString.toStdString());
 
 
                 xmlWriter->writeEndElement(); // RoomIntermediateCameraParameters
