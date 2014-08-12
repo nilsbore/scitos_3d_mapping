@@ -22,6 +22,8 @@
 #include <QXmlStreamWriter>
 #include <QDebug>
 
+#include <fstream>
+
 template <class PointType>
 class SemanticRoomXMLParser {
 public:
@@ -404,6 +406,11 @@ public:
             return aRoom;
         }
 
+        // room folder
+        QString xmlFileQS(xmlFile.c_str());
+        int index = xmlFileQS.lastIndexOf('/');
+        QString roomFolder = xmlFileQS.left(index);
+
         file.open(QIODevice::ReadOnly);
 
         QXmlStreamReader* xmlReader = new QXmlStreamReader(&file);
@@ -463,7 +470,14 @@ public:
                     if (attributes.hasAttribute("filename"))
                     {
                         QString roomCompleteCloudFile = attributes.value("filename").toString();
-                        if (deepLoad)
+                        int sl_index = roomCompleteCloudFile.indexOf('/');
+                        if (sl_index == -1)
+                        {
+                            roomCompleteCloudFile=roomFolder + "/" + roomCompleteCloudFile;
+                        }
+                        std::ifstream file(roomCompleteCloudFile.toStdString().c_str());
+
+                        if (deepLoad && file)
                         {
                             std::cout<<"Loading complete cloud file name "<<roomCompleteCloudFile.toStdString()<<std::endl;
                             pcl::PCDReader reader;
@@ -485,7 +499,13 @@ public:
                     if (attributes.hasAttribute("filename"))
                     {
                         QString roomInteriorCloudFile = attributes.value("filename").toString();
-                        if (deepLoad)
+                        int sl_index = roomInteriorCloudFile.indexOf('/');
+                        if (sl_index == -1)
+                        {
+                            roomInteriorCloudFile=roomFolder + "/" + roomInteriorCloudFile;
+                        }
+                        std::ifstream file(roomInteriorCloudFile.toStdString().c_str());
+                        if (deepLoad && file)
                         {
                             std::cout<<"Loading interior cloud file name "<<roomInteriorCloudFile.toStdString()<<std::endl;
                             pcl::PCDReader reader;
@@ -504,10 +524,18 @@ public:
                 if (xmlReader->name() == "RoomDeNoisedCloud")
                 {
                     QXmlStreamAttributes attributes = xmlReader->attributes();
+
                     if (attributes.hasAttribute("filename"))
                     {
                         QString roomDenoisedCloudFile = attributes.value("filename").toString();
-                        if (deepLoad)
+                        int sl_index = roomDenoisedCloudFile.indexOf('/');
+                        if (sl_index == -1)
+                        {
+                            roomDenoisedCloudFile=roomFolder + "/" + roomDenoisedCloudFile;
+                        }
+
+                        std::ifstream file(roomDenoisedCloudFile.toStdString().c_str());
+                        if (deepLoad && file)
                         {
                             std::cout<<"Loading denoised cloud file name "<<roomDenoisedCloudFile.toStdString()<<std::endl;
                             pcl::PCDReader reader;
@@ -529,7 +557,14 @@ public:
                     if (attributes.hasAttribute("filename"))
                     {
                         QString roomDynamicClustersFile = attributes.value("filename").toString();
-                        if (deepLoad)
+                        int sl_index = roomDynamicClustersFile.indexOf('/');
+                        if (sl_index == -1)
+                        {
+                            roomDynamicClustersFile=roomFolder + "/" + roomDynamicClustersFile;
+                        }
+
+                        std::ifstream file(roomDynamicClustersFile.toStdString().c_str());
+                        if (deepLoad && file)
                         {
                             std::cout<<"Loading dynamic clusters cloud file name "<<roomDynamicClustersFile.toStdString()<<std::endl;
                             pcl::PCDReader reader;
@@ -575,7 +610,16 @@ public:
                     image_geometry::PinholeCameraModel aCameraModel;
                     aCameraModel.fromCameraInfo(intermediateCloudData.camInfo);
 
-                    if (deepLoad)
+                    QString intermediateCloudFilename(intermediateCloudData.filename.c_str());
+
+                    int sl_index = intermediateCloudFilename.indexOf('/');
+                    if (sl_index == -1)
+                    {
+                        intermediateCloudData.filename=roomFolder.toStdString() + "/" + intermediateCloudData.filename;
+                    }
+
+                    std::ifstream file(intermediateCloudData.filename.c_str());
+                    if (deepLoad && file)
                     {
                         std::cout<<"Loading intermediate cloud file name "<<intermediateCloudData.filename<<std::endl;
                         pcl::PCDReader reader;
@@ -767,7 +811,7 @@ private:
                         } else {
                             for (size_t j=0; j< val_list.size();j++)
                             {
-                                camInfo.D[j] = val_list[j].toDouble();
+                                camInfo.D.push_back(val_list[j].toDouble());
                             }
                         }
                     } else {
