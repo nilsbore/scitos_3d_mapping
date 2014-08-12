@@ -323,7 +323,7 @@ public:
                 Eigen::Matrix3f eigen_K;
                 cv2eigen(aCameraModel.intrinsicMatrix(),eigen_K);
                 ssCP<<eigen_K;
-                std::cout<<"Camera parameters K matrix as string "<<ssCP<<std::endl;
+                std::cout<<"Camera parameters K matrix as string "<<ssCP.str().c_str()<<std::endl;
 
 
                 xmlWriter->writeEndElement(); // RoomIntermediateCameraParameters

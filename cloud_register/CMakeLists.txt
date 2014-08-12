@@ -34,7 +34,7 @@ set(SRCS
 
 add_executable(cloud_register_ndt src/ndt_main.cpp)
 
-add_executable(cloud_register_icp src/icp_test_main.cpp)
+#add_executable(cloud_register_icp src/icp_test_main.cpp)
 
 add_library(cloud_register_lib ${HDRS} ${SRCS})
 
@@ -48,7 +48,7 @@ add_library(cloud_register_lib ${HDRS} ${SRCS})
    ${PCL_LIBRARIES}
  )
 
- target_link_libraries(cloud_register_icp
-   ${catkin_LIBRARIES}
-   ${PCL_LIBRARIES}
- )
+# target_link_libraries(cloud_register_icp
+#   ${catkin_LIBRARIES}
+#   ${PCL_LIBRARIES}
+# )

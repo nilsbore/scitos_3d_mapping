@@ -90,10 +90,12 @@ public:
     {
         Cloud subsampled_cloud;
 
-        if (!m_IntermediateCloud != 0)
+	/*
+        if (m_IntermediateCloud == 0)
         {
             return m_IntermediateCloud;
         }
+	*/
 
         if (m_IntermediateCloud->points.size() != 0) // only process the intermediate point cloud if we are using it
         {
