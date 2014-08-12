@@ -88,9 +88,9 @@ public:
 
         // RoomCompleteCloud
         xmlWriter->writeStartElement("RoomCompleteCloud");
-        QString completeCloudFilename("complete_cloud.pcd");
-        completeCloudFilename = metaRoomLocation + completeCloudFilename; // add the folder prefix
-        xmlWriter->writeAttribute("filename",completeCloudFilename);
+        QString completeCloudFilenameLocal("complete_cloud.pcd");
+        QString completeCloudFilename = metaRoomLocation + completeCloudFilenameLocal; // add the folder prefix
+        xmlWriter->writeAttribute("filename",completeCloudFilenameLocal);
         xmlWriter->writeEndElement();
         if (aMetaRoom.getCompleteRoomCloudLoaded()) // only save the cloud file if it's been loaded
         {
@@ -100,9 +100,9 @@ public:
 
         // RoomInteriorCloud
         xmlWriter->writeStartElement("RoomInteriorCloud");
-        QString interiorCloudFilename("interior_cloud.pcd");
-        interiorCloudFilename = metaRoomLocation + interiorCloudFilename; // add the folder prefix
-        xmlWriter->writeAttribute("filename",interiorCloudFilename);
+        QString interiorCloudFilenameLocal("interior_cloud.pcd");
+        QString interiorCloudFilename = metaRoomLocation + interiorCloudFilenameLocal; // add the folder prefix
+        xmlWriter->writeAttribute("filename",interiorCloudFilenameLocal);
         xmlWriter->writeEndElement();
         if (aMetaRoom.getInteriorRoomCloudLoaded()) // only save the cloud file if it's been loaded
         {
@@ -112,9 +112,9 @@ public:
 
         // RoomDeNoisedCloud
         xmlWriter->writeStartElement("RoomDeNoisedCloud");
-        QString denoisedCloudFilename("denoised_cloud.pcd");
-        denoisedCloudFilename = metaRoomLocation + denoisedCloudFilename; // add the folder prefix
-        xmlWriter->writeAttribute("filename",denoisedCloudFilename);
+        QString denoisedCloudFilenameLocal("denoised_cloud.pcd");
+        QString denoisedCloudFilename = metaRoomLocation + denoisedCloudFilenameLocal; // add the folder prefix
+        xmlWriter->writeAttribute("filename",denoisedCloudFilenameLocal);
         xmlWriter->writeEndElement();
         if (aMetaRoom.getDeNoisedRoomCloudLoaded()) // only save the cloud file if it's been loaded
         {
@@ -124,9 +124,9 @@ public:
 
         // ConsistencyUpdateCloud
         xmlWriter->writeStartElement("ConsistencyUpdateCloud");
-        QString consistencyUpdateCloudFilename("consistency_update_cloud.pcd");
-        consistencyUpdateCloudFilename = metaRoomLocation + consistencyUpdateCloudFilename; // add the folder prefix
-        xmlWriter->writeAttribute("filename",consistencyUpdateCloudFilename);
+        QString consistencyUpdateCloudFilenameLocal("consistency_update_cloud.pcd");
+        QString consistencyUpdateCloudFilename = metaRoomLocation + consistencyUpdateCloudFilenameLocal; // add the folder prefix
+        xmlWriter->writeAttribute("filename",consistencyUpdateCloudFilenameLocal);
         xmlWriter->writeEndElement();
         if (aMetaRoom.getConsistencyUpdateCloudLoaded()) // only save the cloud file if it's been loaded
         {
@@ -180,12 +180,13 @@ public:
                 ss << "differenceMetaRoomToRoomIteration";
                 ss <<i;
                 ss <<".pcd";
-                QString completeFileName = metaRoomLocation + QString(ss.str().c_str());
+                QString completeFileNameLocal = QString(ss.str().c_str());
+                QString completeFileName = metaRoomLocation + completeFileNameLocal;
                 if (updateIterations[i].differenceMetaRoomToRoomLoaded) // only save if it's been loaded
                 {
                     ROS_INFO_STREAM("Saving difference metaroom to room "<<completeFileName.toStdString());
                     pcl::io::savePCDFile (completeFileName.toStdString(), *updateIterations[i].getDifferenceMetaRoomToRoom(), true);
-                    xmlWriter->writeCharacters(completeFileName);
+                    xmlWriter->writeCharacters(completeFileNameLocal);
                 }
 
             }
@@ -198,12 +199,13 @@ public:
                 ss << "differenceRoomToMetaRoomIteration";
                 ss <<i;
                 ss <<".pcd";
-                QString completeFileName = metaRoomLocation + QString(ss.str().c_str());                
+                QString completeFileNameLocal = QString(ss.str().c_str());
+                QString completeFileName = metaRoomLocation + completeFileNameLocal;
                 if (updateIterations[i].differenceRoomToMetaRoomLoaded) // only save if it's been loaded
                 {
                     std::cout<<"Saving difference room to metaroom"<<completeFileName.toStdString()<<std::endl;
                     pcl::io::savePCDFile (completeFileName.toStdString(), *updateIterations[i].getDifferenceRoomToMetaRoom(), true);
-                    xmlWriter->writeCharacters(completeFileName);
+                    xmlWriter->writeCharacters(completeFileNameLocal);
                 }
             }
             xmlWriter->writeEndElement();
@@ -216,13 +218,14 @@ public:
                     ss << "clustersToBeAdded";
                     ss <<i;
                     ss <<".pcd";
-                    QString completeFileName = metaRoomLocation + QString(ss.str().c_str());
+                    QString completeFileNameLocal = QString(ss.str().c_str());
+                    QString completeFileName = metaRoomLocation + completeFileNameLocal;
 
                     if (updateIterations[i].clustersToBeAddedLoaded) // only save if it's been loaded
                     {
                         std::cout<<"Saving clustersToBeAdded "<<completeFileName.toStdString()<<std::endl;
                         pcl::io::savePCDFile (completeFileName.toStdString(), *updateIterations[i].getClustersToBeAdded(), true);
-                        xmlWriter->writeCharacters(completeFileName);
+                        xmlWriter->writeCharacters(completeFileNameLocal);
                     }
                 }
                 xmlWriter->writeEndElement();
@@ -236,12 +239,13 @@ public:
                     ss << "clustersToBeRemoved";
                     ss <<i;
                     ss <<".pcd";
-                    QString completeFileName = metaRoomLocation + QString(ss.str().c_str());
+                    QString completeFileNameLocal = QString(ss.str().c_str());
+                    QString completeFileName = metaRoomLocation + completeFileNameLocal;
                     if (updateIterations[i].clustersToBeRemovedLoaded) // only save if it's been loaded
                     {
                         std::cout<<"Saving clustersToBeAdded "<<completeFileName.toStdString()<<std::endl;
                         pcl::io::savePCDFile (completeFileName.toStdString(), *updateIterations[i].getClustersToBeRemoved(), true);
-                        xmlWriter->writeCharacters(completeFileName);
+                        xmlWriter->writeCharacters(completeFileNameLocal);
                     }
                 }
                 xmlWriter->writeEndElement();
@@ -253,12 +257,13 @@ public:
                 ss << "metaRoomInteriorCloud";
                 ss <<i;
                 ss <<".pcd";
-                QString completeFileName = metaRoomLocation + QString(ss.str().c_str());
+                QString completeFileNameLocal = QString(ss.str().c_str());
+                QString completeFileName = metaRoomLocation + completeFileNameLocal;
                 if (updateIterations[i].metaRoomInteriorCloudLoaded) // only save if it's been loaded
                 {
                     std::cout<<"Saving metaRoomInteriorCloud "<<completeFileName.toStdString()<<std::endl;
                     pcl::io::savePCDFile (completeFileName.toStdString(), *updateIterations[i].getMetaRoomInteriorCloud(), true);
-                    xmlWriter->writeCharacters(completeFileName);
+                    xmlWriter->writeCharacters(completeFileNameLocal);
                 }
             }
             xmlWriter->writeEndElement();

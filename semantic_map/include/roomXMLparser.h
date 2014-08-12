@@ -135,9 +135,9 @@ public:
 
         // RoomCompleteCloud
         xmlWriter->writeStartElement("RoomCompleteCloud");
-        QString completeCloudFilename("complete_cloud.pcd");
-        completeCloudFilename = roomFolder + completeCloudFilename; // add the folder prefix
-        xmlWriter->writeAttribute("filename",completeCloudFilename);
+        QString cloudFilename("complete_cloud.pcd");
+        QString completeCloudFilename = roomFolder + cloudFilename; // add the folder prefix
+        xmlWriter->writeAttribute("filename",cloudFilename);
         xmlWriter->writeEndElement();
         if (aRoom.getCompleteRoomCloudLoaded()) // only save the cloud file if it's been loaded
         {
@@ -154,9 +154,9 @@ public:
 
         // RoomInteriorCloud
         xmlWriter->writeStartElement("RoomInteriorCloud");
-        QString interiorCloudFilename("interior_cloud.pcd");
-        interiorCloudFilename = roomFolder + interiorCloudFilename; // add the folder prefix
-        xmlWriter->writeAttribute("filename",interiorCloudFilename);
+        QString interiorCloudFilenameLocal("interior_cloud.pcd");
+        QString interiorCloudFilename = roomFolder + interiorCloudFilenameLocal; // add the folder prefix
+        xmlWriter->writeAttribute("filename",interiorCloudFilenameLocal);
         xmlWriter->writeEndElement();
         if (aRoom.getInteriorRoomCloudLoaded()) // only save the cloud file if it's been loaded
         {
@@ -174,9 +174,9 @@ public:
 
         // RoomDeNoisedCloud
         xmlWriter->writeStartElement("RoomDeNoisedCloud");
-        QString denoisedCloudFilename("denoised_cloud.pcd");
-        denoisedCloudFilename = roomFolder + denoisedCloudFilename; // add the folder prefix
-        xmlWriter->writeAttribute("filename",denoisedCloudFilename);
+        QString denoisedCloudFilenameLocal("denoised_cloud.pcd");
+        QString denoisedCloudFilename = roomFolder + denoisedCloudFilenameLocal; // add the folder prefix
+        xmlWriter->writeAttribute("filename",denoisedCloudFilenameLocal);
         xmlWriter->writeEndElement();
         if (aRoom.getDeNoisedRoomCloudLoaded()) // only save the cloud file if it's been loaded
         {
@@ -192,8 +192,8 @@ public:
         }
 
         // RoomDynamicClusters
-        QString dynamicClustersFilename("dynamic_clusters.pcd");
-        dynamicClustersFilename = roomFolder + dynamicClustersFilename; // add the folder prefix
+        QString dynamicClustersFilenameLocal("dynamic_clusters.pcd");
+        QString dynamicClustersFilename = roomFolder + dynamicClustersFilenameLocal; // add the folder prefix
         QFile dynamicClustersFile(dynamicClustersFilename);
 
         if (aRoom.getDynamicClustersCloudLoaded() && aRoom.getDynamicClustersCloud()->points.size()) // only save the cloud file if it's been loaded
@@ -205,13 +205,13 @@ public:
             //            }
 
             xmlWriter->writeStartElement("RoomDynamicClusters");
-            xmlWriter->writeAttribute("filename",dynamicClustersFilename);
+            xmlWriter->writeAttribute("filename",dynamicClustersFilenameLocal);
             xmlWriter->writeEndElement();
         } else {
             if (dynamicClustersFile.exists())
             {
                 xmlWriter->writeStartElement("RoomDynamicClusters");
-                xmlWriter->writeAttribute("filename",dynamicClustersFilename);
+                xmlWriter->writeAttribute("filename",dynamicClustersFilenameLocal);
                 xmlWriter->writeEndElement();
             }
         }
@@ -242,23 +242,20 @@ public:
         std::vector<tf::StampedTransform> roomIntermediateCloudTransforms = aRoom.getIntermediateCloudTransforms();
         std::vector<image_geometry::PinholeCameraModel> roomIntermediateCloudCameraParameters = aRoom.getIntermediateCloudCameraParameters();
         std::vector<bool>   roomIntermediateCloudsLoaded = aRoom.getIntermediateCloudsLoaded();
-        //        if (roomIntermediateClouds.size() != roomIntermediateCloudTransforms.size())
-        //        {
-        //            std::cerr<<"The size of the intermediate cloud vector and the transforms vector do not match"<<std::endl;
-        //            xmlWriter->writeCharacters("Error");
-        //        } else {
         for (size_t i=0; i<roomIntermediateCloudTransforms.size(); i++)
         {
             // RoomIntermediateCloud
             xmlWriter->writeStartElement("RoomIntermediateCloud");
             std::stringstream ss;
+            QString intermediateCloudLocalPath = "";
             QString intermediateCloudPath = "";
             if (aRoom.getSaveIntermediateClouds())
             {
                 ss << "intermediate_cloud"<<std::setfill('0')<<std::setw(4)<<i<<".pcd";
-                intermediateCloudPath = roomFolder + ss.str().c_str();
+                intermediateCloudLocalPath = ss.str().c_str();
+                intermediateCloudPath = roomFolder + intermediateCloudLocalPath;
             }
-            xmlWriter->writeAttribute("filename",intermediateCloudPath);
+            xmlWriter->writeAttribute("filename",intermediateCloudLocalPath);
 
             if(roomIntermediateCloudsLoaded[i] && aRoom.getSaveIntermediateClouds())
             {
