@@ -344,7 +344,7 @@ public:
                 KString+=",";
             }
             xmlWriter->writeAttribute("K",KString);
-            ROS_INFO_STREAM("K matrix "<<KString.toStdString());
+//            ROS_INFO_STREAM("K matrix "<<KString.toStdString());
 
             // D matrix
             QString DString;
@@ -354,7 +354,7 @@ public:
                 DString+=",";
             }
             xmlWriter->writeAttribute("D",DString);
-            ROS_INFO_STREAM("D matrix "<<DString.toStdString());
+//            ROS_INFO_STREAM("D matrix "<<DString.toStdString());
 
             // R matrix
             QString RString;
@@ -364,7 +364,7 @@ public:
                 RString+=",";
             }
             xmlWriter->writeAttribute("R",RString);
-            ROS_INFO_STREAM("R matrix "<<RString.toStdString());
+//            ROS_INFO_STREAM("R matrix "<<RString.toStdString());
 
             // P matrix
             QString PString;
@@ -374,7 +374,7 @@ public:
                 PString+=",";
             }
             xmlWriter->writeAttribute("P",PString);
-            ROS_INFO_STREAM("P matrix "<<PString.toStdString());
+//            ROS_INFO_STREAM("P matrix "<<PString.toStdString());
 
 
             xmlWriter->writeEndElement(); // RoomIntermediateCameraParameters
