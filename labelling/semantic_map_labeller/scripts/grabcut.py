@@ -87,7 +87,7 @@ def find_images_depth(xml_path):
         else:
             #print f_path
             file_found=False
-        if index >= end_image_index:
+        if index > end_image_index:
             break
     print 'Found ',len(image_list),' files.'
     return image_list
@@ -113,7 +113,7 @@ def find_images(xml_path):
         else:
             #print f_path
             file_found=False
-        if index >= end_image_index:
+        if index > end_image_index:
             break
     print 'Found ',len(image_list),' files.'
     return image_list
@@ -196,14 +196,16 @@ def onmouse(event,x,y,flags,param):
 #print __doc__
 
 # Loading images
-if len(sys.argv) == 4:
+if len(sys.argv) == 5:
     filename = sys.argv[1] # for drawing purposes    
     start_image_index = int(sys.argv[2])
     end_image_index = int(sys.argv[3])
+    start_sweep = int(sys.argv[4])
+    current_sweep = start_sweep
 else:
     #print "No input image given, so loading default image, ../data/lena.jpg \n"
-    #print "Correct Usage: python grabcut.py <filename> \n"
-    filename = '../data/lena.jpg'
+    print "Correct Usage: python grabcut.py <filename> <start_image_index> <end_image_index> <start_sweep_number>\n"
+    sys.exit()
 
 sweeps = find_sweeps(sys.argv[1])
 images = find_images(sweeps[start_sweep])
@@ -225,6 +227,8 @@ cv2.namedWindow('depth')
 cv2.setMouseCallback('input',onmouse)
 cv2.setMouseCallback('depth',onmouse)
 cv2.moveWindow('input',img.shape[1]+10,90)
+
+image_counter = start_image_index;
 
 #print " Instructions: \n"
 #print " Draw a rectangle around the object using right mouse button \n"
@@ -248,12 +252,13 @@ while(1):
     elif k == ord('2'): # PR_BG drawing
         value = DRAW_PR_BG
     elif k == ord('f'): # PR_BG drawing
-        label_number = find_next_label_number(images[image_counter])
-        label_file = create_label_file(label_number, images[image_counter])
+        label_number = find_next_label_number(images[image_counter-start_image_index])
+        label_file = create_label_file(label_number, images[image_counter-start_image_index])
         print 'Next label file is ', label_file
     elif k == ord('.'): # PR_BG drawing
          image_counter=image_counter+1
-         if image_counter >= end_image_index:
+         # if image_counter >= end_image_index:
+         if image_counter - start_image_index > end_image_index - start_image_index:
              # handle by moving to the next sweep
              image_counter = start_image_index;
              current_sweep=current_sweep+1;
@@ -268,19 +273,19 @@ while(1):
              	images = find_images(sweeps[current_sweep])
              	depths = find_images_depth(sweeps[current_sweep])
 
-         img = cv2.imread(images[image_counter])
-         depth = cv2.imread(depths[image_counter])
+         img = cv2.imread(images[image_counter-start_image_index])
+         depth = cv2.imread(depths[image_counter-start_image_index])
          img2 = img.copy()                               # a copy of original image
          mask = np.zeros(img.shape[:2],dtype = np.uint8) # mask initialized to PR_BG
          output = np.zeros(img.shape,np.uint8)
          label_number=0
-         label_number = find_next_label_number(images[image_counter])
-         label_file = create_label_file(label_number, images[image_counter])
+         label_number = find_next_label_number(images[image_counter-start_image_index])
+         label_file = create_label_file(label_number, images[image_counter - start_image_index])
          print 'Next label file is ', label_file
 
     elif k == ord(','): # PR_BG drawing
          image_counter=image_counter-1
-         if image_counter < start_image_index:
+         if image_counter -start_image_index< 0:
              # handle by moving to previous sweep
              image_counter = start_image_index
              current_sweep=current_sweep-1;
@@ -294,14 +299,14 @@ while(1):
              	print 'New sweep number ',current_sweep
              	images = find_images(sweeps[current_sweep])
              	depths = find_images_depth(sweeps[current_sweep])
-         img = cv2.imread(images[image_counter])
-         depth = cv2.imread(depths[image_counter])
+         img = cv2.imread(images[image_counter-start_image_index])
+         depth = cv2.imread(depths[image_counter - start_image_index])
          img2 = img.copy()                               # a copy of original image
          mask = np.zeros(img.shape[:2],dtype = np.uint8) # mask initialized to PR_BG
          output = np.zeros(img.shape,np.uint8)
          label_number=0
-         label_number = find_next_label_number(images[image_counter])
-         label_file = create_label_file(label_number, images[image_counter])
+         label_number = find_next_label_number(images[image_counter-start_image_index])
+         label_file = create_label_file(label_number, images[image_counter-start_image_index])
          print 'Next label file is ', label_file
 
          #print 'incrementing counter'
@@ -311,9 +316,9 @@ while(1):
         bar = np.zeros((img.shape[0],5,3),np.uint8)
         res = np.hstack((img2,bar,img,bar,output))
         #cv2.imwrite('grabcut_output.png',res)
-        label_file = create_label_file(label_number, images[image_counter])
+        label_file = create_label_file(label_number, images[image_counter-start_image_index])
         cv2.imwrite(label_file,mask2)
-        rgb_file = create_label_file_rgb(label_number, images[image_counter])
+        rgb_file = create_label_file_rgb(label_number, images[image_counter-start_image_index])
         cv2.imwrite(rgb_file,output)
         label_number = label_number + 1
         print " Result saved as image ",label_file
