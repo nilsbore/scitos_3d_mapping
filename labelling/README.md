@@ -1,6 +1,5 @@
 *** To extract all the sweeps corresponding to one waypoint and save them at another location run the following:
 rosrun semantic_map_labeller export_waypoint_sweeps /path/from/ /path/to/ WayPointXXX 
-(WayPointXXX for us should be WayPoint5 - kitchen, WayPoint16 - Nils' room, already done, WayPoint19 - my room). 
 
 After doing this, you should have sweeps in /path/to/ along with a txt file /path/to/WayPointXXX.txt which contains a list of xml files for the sweeps you exported. 
 
@@ -35,7 +34,7 @@ The way it should work is:
 *** Once the object segmentation step (above) is done, we need to assign labels to objects. This is done through the project: QTLabeller.
 This is a QT project, so open it in QT creator and compile it. Next set the following run arguments:
 /path/to/ WayPointXXX /path/to/labels.txt /path/to/display_labels.txt
-Explanation: first create two empty text files /path/to/labels.txt /path/to/display_labels.txt. These will hold the labels you can assign to the objects you have segmented, and you can add labels online once you start the program, so they can be empty to begin with. There are two such files, because you might want one label to be displayed when you assign it, but something else, like its alias to be actually saved (for example, in Nils' room there are 3 chairs, with display labels Nils' chair, Johan's chair and Yuquan's chair, but I want the actual labels to be chair1, chair2, chair3, in case I upload the data anywhere I don't want people to see Yuquan's chair there but chair2; on the other hand, while annotation 1000+ images, I might forget which one was chair1 and which one was chair2, so it's easier to remember with the display labels).
+Explanation: first create two empty text files /path/to/labels.txt /path/to/display_labels.txt. These will hold the labels you can assign to the objects you have segmented, and you can add labels online once you start the program, so they can be empty to begin with. There are two such files, because you might want one label to be displayed when you assign it, but something else, like its alias to be actually saved (for example, in some room there are 3 chairs, with display labels John's chair, Jack's chair and Maria's chair, but I want the actual labels to be chair1, chair2, chair3 - while annotation 1000+ images, I might forget which one was chair1 and which one was chair2, so it's easier to remember with the display labels).
 
 Run the program:
 - press "n" to go to the next segmented object.
