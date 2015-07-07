@@ -35,6 +35,7 @@ add_executable(copy_label_files  include/labeller.h src/copy_label_files.cpp)
 add_executable(create_xml_from_labels  include/labeller.h src/create_xml_from_labels.cpp)
 add_executable(view_labelled_objects  include/labeller.h src/view_labelled_objects.cpp)
 add_executable(export_waypoint_sweeps  include/labeller.h src/export_waypoint_sweeps.cpp)
+add_executable(list_waypoint_sweeps  include/labeller.h src/list_waypoint_sweeps.cpp)
 
  target_link_libraries(create_int_images
    ${catkin_LIBRARIES}
@@ -75,6 +76,12 @@ add_executable(export_waypoint_sweeps  include/labeller.h src/export_waypoint_sw
  )
 
  target_link_libraries(export_waypoint_sweeps
+   ${catkin_LIBRARIES}
+   ${PCL_LIBRARIES}
+   ${QT_LIBRARIES}
+ )
+
+ target_link_libraries(list_waypoint_sweeps
    ${catkin_LIBRARIES}
    ${PCL_LIBRARIES}
    ${QT_LIBRARIES}
