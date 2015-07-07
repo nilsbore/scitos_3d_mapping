@@ -1,10 +1,6 @@
 #include <pcl/io/pcd_io.h>
-#include <pcl/visualization/pcl_visualizer.h>
-
 #include <vector>
 #include <QDir>
-
-
 
 #include "load_utilities.h"
 #include "labeller.h"
@@ -36,16 +32,12 @@ int main(int argc, char** argv)
    ROS_INFO_STREAM("Observation matches for waypoint "<<matchingObservations.size());
 
 
-   string output_file=to+"/"+waypId+".txt";
-   ofstream to_fstream;
-   to_fstream.open(output_file);
    SemanticRoomXMLParser<PointType> parser(to+"/");
-   for (size_t i=0; i</*matchingObservations.size()*/10;i++)
+   for (size_t i=0; i<matchingObservations.size();i++)
    {
       ROS_INFO_STREAM("Parsing "<<matchingObservations[i]);
       SemanticRoom<PointType> room = SemanticRoomXMLParser<PointType>::loadRoomFromXML(matchingObservations[i],true);
       string output_xml = parser.saveRoomAsXML(room);
-      to_fstream<<output_xml<<endl;
    }
 
 }
