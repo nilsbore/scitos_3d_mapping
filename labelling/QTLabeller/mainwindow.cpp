@@ -1,10 +1,10 @@
-#include "simple_summary_parser.h"
-
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
 
 #include <QImage>
 #include <QShortcut>
+#include <QDir>
+#include <QFile>
 
 using namespace std;
 

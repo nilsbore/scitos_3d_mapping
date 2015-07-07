@@ -21,7 +21,7 @@ HEADERS  += mainwindow.h
 
 FORMS    += mainwindow.ui
 
-unix:!macx: LIBS += -L$$PWD/../../../devel/lib/ -lmetaroom_xml_parser -lboost_system
+unix:!macx: LIBS += -L$$PWD/../../../devel/lib/ -lboost_system
 
 INCLUDEPATH += $$PWD/../../strands_3d_mapping/metaroom_xml_parser/include
 DEPENDPATH += $$PWD/../../strands_3d_mapping/metaroom_xml_parser/include

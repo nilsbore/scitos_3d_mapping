@@ -10,14 +10,13 @@ int main(int argc, char *argv[])
    string waypId = "";
    string labels = "";
    string display_labels="";
-   if (argc == 5)
+   if (argc == 4)
    {
        path=argv[1];
-      waypId = argv[2];
-      labels = argv[3];
-      display_labels=argv[4];
+      labels = argv[2];
+      display_labels=argv[3];
    } else {
-      std::cout<<"Please provide required argument"<<std::endl;
+      std::cout<<"Please provide required arguments"<<std::endl;
       return -1;
    }
 
