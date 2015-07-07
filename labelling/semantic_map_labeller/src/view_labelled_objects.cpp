@@ -9,7 +9,6 @@
 #include "load_utilities.h"
 #include "labeller.h"
 
-#include "object_matches.h"
 #include "dynamic_object.h"
 #include "dynamic_object_xml_parser.h"
 
@@ -42,9 +41,8 @@ int main(int argc, char** argv)
 
    DynamicObjectXMLParser parser;
    sort(matchingObservations.begin(), matchingObservations.end());
-
-   vector<ObjectMatches::Ptr> allMatches;
-   vector<vector<string>> allMatchFiles;
+   
+   map<string, vector<DynamicObject::Ptr>> labelToObjectsMap;
 
    for (size_t i=0; i<matchingObservations.size();i++)
    {
@@ -60,49 +58,20 @@ int main(int argc, char** argv)
       for (size_t i=0; i<xmlFiles.size(); i++)
       {
          DynamicObject::Ptr parsed = parser.loadFromXML(base_path+xmlFiles[i].toStdString());
-
-         bool found = false;
-//         for (auto match : allMatches)
-         for (size_t j=0; j<allMatches.size();j++)
-         {
-            ObjectMatches::Ptr match = allMatches[j];
-            if (match->m_Matches[0]->m_label == parsed->m_label)
-            {
-               match->addMatch(parsed);
-               allMatchFiles[j].push_back(base_path+xmlFiles[i].toStdString());
-               found = true;
-               break;
-            }
-         }
-         if (!found)
-         {
-            ObjectMatches::Ptr newMatch = ObjectMatches::Ptr(new ObjectMatches);
-            vector<string> newMatchFile = {base_path+xmlFiles[i].toStdString()};
-            allMatchFiles.push_back(newMatchFile);
-            newMatch->addMatch(parsed);
-            allMatches.push_back(newMatch);
-         }
-
+	 labelToObjectsMap[parsed->m_label].push_back(parsed);
       }
 
    }
 
    int counter =0;
-   for (auto matches: allMatches)
+   for (auto matches: labelToObjectsMap)
    {
-      cout<<"Class label "<<matches->m_Matches[0]->m_label<<"  instances  "<<matches->m_Matches.size()<<endl;
+      cout<<"Class label "<<matches.first<<"  instances  "<<matches.second.size()<<endl;
       CloudPtr combinedClusterCloud( new Cloud());
-      for (auto object: matches->m_Matches)
+      for (auto object: matches.second)
       {
          *combinedClusterCloud += *object->m_points;
       }
-
-      for (string file : allMatchFiles[counter])
-      {
-         cout<<file<<endl;
-      }
-      counter++;
-
 
 //      pcl::visualization::PointCloudColorHandlerCustom<PointType> cluster_handler (combinedClusterCloud, 0, 255, 0);
       p->addPointCloud (combinedClusterCloud, "cluster");

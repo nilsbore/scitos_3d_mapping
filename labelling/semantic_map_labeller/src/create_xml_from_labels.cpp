@@ -6,10 +6,8 @@
 
 #include "load_utilities.h"
 #include "labeller.h"
-
-#include "object_matches.h"
-#include "dynamic_object.h"
 #include "dynamic_object_xml_parser.h"
+
 #include <semantic_map/room_xml_parser.h>
 
 

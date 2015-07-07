@@ -4,7 +4,7 @@ project(semantic_map_labeller)
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
-find_package(catkin REQUIRED COMPONENTS roscpp rospy std_msgs sensor_msgs pcl_ros qt_build semantic_map metaroom_xml_parser semantic_map_test image_transport cloud_register ransac_primitives)
+find_package(catkin REQUIRED COMPONENTS roscpp rospy std_msgs sensor_msgs pcl_ros qt_build semantic_map metaroom_xml_parser image_transport object_manager)
 
 #set(CMAKE_CXX_FLAGS "-fopenmp -O4 -fPIC -std=c++0x -fpermissive ${CMAKE_CXX_FLAGS}")
 set(CMAKE_CXX_FLAGS "-g -fPIC -std=c++0x -fpermissive ${CMAKE_CXX_FLAGS}")
