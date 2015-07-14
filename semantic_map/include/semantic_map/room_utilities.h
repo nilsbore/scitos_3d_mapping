@@ -80,7 +80,7 @@ namespace semantic_map_room_utilities
     }
 
     template <class PointType>
-    void rebuildRegisteredCloud(SemanticRoom<PointType>& aRoom)
+    bool rebuildRegisteredCloud(SemanticRoom<PointType>& aRoom)
     {
         typedef pcl::PointCloud<PointType> Cloud;
         typedef typename Cloud::Ptr CloudPtr;
@@ -99,13 +99,45 @@ namespace semantic_map_room_utilities
                 *mergedCloudRegistered+=transformed_cloud;
             }
             aRoom.setCompleteRoomCloud(mergedCloudRegistered);
+	    return true;
         } else {
-            ROS_INFO_STREAM("Cannot rebuild registered cloud. Not enough registered transforms."<<cloudTransformsReg.size()<<"  "<<clouds.size());
+            ROS_INFO_STREAM("Cannot rebuild registered cloud. Not enough registered transforms.  "<<cloudTransformsReg.size()<<"  "<<clouds.size());
+	    return false;
         }
 
+    	return true;
 
     }
 
+    template <class PointType>
+    bool rebuildOriginalCloud(SemanticRoom<PointType>& aRoom)
+    {
+        typedef pcl::PointCloud<PointType> Cloud;
+        typedef typename Cloud::Ptr CloudPtr;
+
+        std::vector<tf::StampedTransform> cloudTransforms = aRoom.getIntermediateCloudTransforms();
+        std::vector<CloudPtr> clouds= aRoom.getIntermediateClouds();
+
+        CloudPtr mergedCloud(new Cloud);
+
+        if (cloudTransforms.size() == clouds.size())
+        {
+            for (size_t j=0; j<clouds.size()/3; j++)
+            {
+                Cloud transformed_cloud;
+                pcl_ros::transformPointCloud(*clouds[j], transformed_cloud,cloudTransforms[j]);
+                *mergedCloud+=transformed_cloud;
+            }
+            aRoom.setCompleteRoomCloud(mergedCloud);
+	    return true;
+        } else {
+            ROS_INFO_STREAM("Cannot rebuild original cloud. Not enough transforms."<<cloudTransforms.size()<<"  "<<clouds.size());
+	    return false;
+        }
+
+    	return true;
+
+    }
 }
 
 
