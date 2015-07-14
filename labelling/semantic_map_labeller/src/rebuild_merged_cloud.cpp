@@ -47,15 +47,18 @@ int main(int argc, char** argv)
       SemanticRoom<PointType> room = SemanticRoomXMLParser<PointType>::loadRoomFromXML(matchingObservations[i],true);
       bool rebuilt = semantic_map_room_utilities::rebuildRegisteredCloud<PointType>(room);
       if (!rebuilt){
-	      semantic_map_room_utilities::rebuildOriginalCloud<PointType>(room);
+	      rebuilt = semantic_map_room_utilities::rebuildOriginalCloud<PointType>(room);
+	      if (rebuilt) {
+		parser.saveRoomAsXML(room);
+	      }
       } else {
 	      auto origTransforms = room.getIntermediateCloudTransforms();
 	      tf::StampedTransform origin = origTransforms[0];
 	      CloudPtr completeCloud = room.getCompleteRoomCloud();
 	      pcl_ros::transformPointCloud(*completeCloud, *completeCloud,origin);
 	      room.setCompleteRoomCloud(completeCloud);
+	      string output_xml = parser.saveRoomAsXML(room);
       }
-      string output_xml = parser.saveRoomAsXML(room);
    }
 
 }
