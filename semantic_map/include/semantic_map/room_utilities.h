@@ -90,9 +90,10 @@ namespace semantic_map_room_utilities
 
         CloudPtr mergedCloudRegistered(new Cloud);
 
-        if (cloudTransformsReg.size() == clouds.size())
+        if (cloudTransformsReg.size() >= clouds.size())
         {
-            for (size_t j=0; j<clouds.size()/3; j++)
+            //for (size_t j=0; j<clouds.size()/3; j++)
+            for (size_t j=0; j<17; j++)
             {
                 Cloud transformed_cloud;
                 pcl_ros::transformPointCloud(*clouds[j], transformed_cloud,cloudTransformsReg[j]);
@@ -120,9 +121,10 @@ namespace semantic_map_room_utilities
 
         CloudPtr mergedCloud(new Cloud);
 
-        if (cloudTransforms.size() == clouds.size())
+        if (cloudTransforms.size() >= clouds.size())
         {
-            for (size_t j=0; j<clouds.size()/3; j++)
+            //for (size_t j=0; j<clouds.size()/3; j++)
+            for (size_t j=0; j<17; j++)
             {
                 Cloud transformed_cloud;
                 pcl_ros::transformPointCloud(*clouds[j], transformed_cloud,cloudTransforms[j]);
