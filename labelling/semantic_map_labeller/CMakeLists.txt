@@ -66,14 +66,12 @@ add_executable(rebuild_merged_cloud  src/rebuild_merged_cloud.cpp)
    ${catkin_LIBRARIES}
    ${PCL_LIBRARIES}
    ${QT_LIBRARIES}
-    temporal_awesomeness
  )
 
  target_link_libraries(view_labelled_objects
    ${catkin_LIBRARIES}
    ${PCL_LIBRARIES}
    ${QT_LIBRARIES}
-    temporal_awesomeness
  )
 
  target_link_libraries(export_waypoint_sweeps
