@@ -4,12 +4,11 @@
 
 #include <pcl/io/pcd_io.h>
 
-#include "load_utilities.h"
-#include "labeller.h"
-#include "dynamic_object_xml_parser.h"
-
+#include <metaroom_xml_parser/load_utilities.h>
+#include <object_manager/dynamic_object_xml_parser.h>
 #include <semantic_map/room_xml_parser.h>
 
+#include "labeller.h"
 
 typedef pcl::PointXYZRGB PointType;
 typedef pcl::PointCloud<PointType> Cloud;

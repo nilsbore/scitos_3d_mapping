@@ -2,7 +2,7 @@
 #include <vector>
 #include <QDir>
 
-#include "load_utilities.h"
+#include <metaroom_xml_parser/load_utilities.h>
 #include <semantic_map/room_utilities.h>
 
 typedef pcl::PointXYZRGB PointType;

@@ -5,7 +5,7 @@
 #include <pcl/common/transforms.h>
 #include <pcl_ros/transforms.h>
 
-#include "load_utilities.h"
+#include <metaroom_xml_parser/load_utilities.h>
 #include "semantic_map/room_xml_parser.h"
 
 typedef pcl::PointXYZRGB PointType;

@@ -1,6 +1,6 @@
 #include <vector>
 
-#include "load_utilities.h"
+#include <metaroom_xml_parser/load_utilities.h>
 #include "labeller.h"
 
 typedef pcl::PointXYZRGB PointType;
