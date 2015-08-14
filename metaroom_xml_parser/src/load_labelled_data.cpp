@@ -37,12 +37,12 @@ int main(int argc, char** argv)
         if (data.objectClouds.size() == 0) continue; // no labelled objects
 
         // To transform to the map frame of reference:
-        //        static tf::StampedTransform world_transform = data.transformToGlobal;
-        //        pcl_ros::transformPointCloud(*data.completeCloud, *data.completeCloud,world_transform);
-        //        for (auto object: data.labelledObjects)
-        //        {
-        //            pcl_ros::transformPointCloud(*(object->m_points), *(object->m_points),world_transform);
-        //        }
+//        static tf::StampedTransform world_transform = data.transformToGlobal;
+//        pcl_ros::transformPointCloud(*data.completeCloud, *data.completeCloud,world_transform);
+//        for (auto object: data.objectClouds)
+//        {
+//            pcl_ros::transformPointCloud(*object, *object,world_transform);
+//        }
 
 
         if (visualize)
