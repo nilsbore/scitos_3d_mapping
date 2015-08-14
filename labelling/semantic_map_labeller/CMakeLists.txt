@@ -37,6 +37,8 @@ add_executable(view_labelled_objects  include/labeller.h src/view_labelled_objec
 add_executable(export_waypoint_sweeps  include/labeller.h src/export_waypoint_sweeps.cpp)
 add_executable(list_waypoint_sweeps  include/labeller.h src/list_waypoint_sweeps.cpp)
 add_executable(rebuild_merged_cloud  src/rebuild_merged_cloud.cpp)
+add_executable(export_sweeps_and_reduce_int_clouds src/export_sweeps_and_reduce_int_clouds.cpp)
+
 
  target_link_libraries(create_int_images
    ${catkin_LIBRARIES}
@@ -91,3 +93,10 @@ target_link_libraries(rebuild_merged_cloud
    ${PCL_LIBRARIES}
    ${QT_LIBRARIES}
  )
+
+target_link_libraries(export_sweeps_and_reduce_int_clouds
+   ${catkin_LIBRARIES}
+   ${PCL_LIBRARIES}
+   ${QT_LIBRARIES}
+ )
+
