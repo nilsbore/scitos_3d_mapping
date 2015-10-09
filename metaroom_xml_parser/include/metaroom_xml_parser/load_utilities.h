@@ -87,6 +87,7 @@ namespace semantic_map_load_utilties
         tf::StampedTransform                                        transformToGlobal;
         tf::Vector3                                                 sweepCenter;
         std::vector<boost::shared_ptr<pcl::PointCloud<PointType>>>  objectClouds;
+        std::vector<cv::Mat>                                        objectImages;
         std::vector<std::string>                                    objectLabels;
         boost::posix_time::ptime                                    sweepTime;
         std::string                                                 waypoint;
@@ -117,4 +118,3 @@ namespace semantic_map_registration_features
 }
 
 #endif
-

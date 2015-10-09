@@ -306,7 +306,7 @@
 
         sort(matchingObservations.begin(), matchingObservations.end(),
              [](const std::string& a, const std::string& b )
-        {            
+        {
             std::string patrol_string = "patrol_run_";
             std::string room_string = "room_";
             std::string date_string = "YYYYMMDD";
@@ -467,6 +467,12 @@
         unsigned found = sweepXmlPath.find_last_of("/");
         std::string base_path = sweepXmlPath.substr(0,found+1);
         QStringList xmlFiles = QDir(base_path.c_str()).entryList(QStringList("*label*.pcd"));
+        QStringList imageFiles = QDir(base_path.c_str()).entryList(QStringList("*object*.jpg"));
+
+        if (xmlFiles.size() != imageFiles.size())
+        {
+            ROS_INFO_STREAM("In " << sweepXmlPath << " found different number of labels and object images.");
+        }
 
         for (size_t k=0; k<xmlFiles.size(); k++)
         {
@@ -487,10 +493,12 @@
                 continue;
             }
 
+            cv::Mat image = cv::imread(base_path+imageFiles[k].toStdString());
+
             toRet.objectClouds.push_back(cloud);
+            toRet.objectImages.push_back(image);
             toRet.objectLabels.push_back(label);
         }
 
         return toRet;
     }
-
