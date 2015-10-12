@@ -89,6 +89,7 @@ namespace semantic_map_load_utilties
         std::vector<boost::shared_ptr<pcl::PointCloud<PointType>>>  objectClouds;
         std::vector<cv::Mat>                                        objectImages;
         std::vector<std::string>                                    objectLabels;
+        std::vector<size_t>                                         objectScanIndices;
         boost::posix_time::ptime                                    sweepTime;
         std::string                                                 waypoint;
 
