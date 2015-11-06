@@ -468,6 +468,7 @@
         std::string base_path = sweepXmlPath.substr(0,found+1);
         QStringList xmlFiles = QDir(base_path.c_str()).entryList(QStringList("*label*.pcd"));
         QStringList imageFiles = QDir(base_path.c_str()).entryList(QStringList("*object*.jpg"));
+        QStringList maskFiles = QDir(base_path.c_str()).entryList(QStringList("*label*.jpg"));
 
         if (xmlFiles.size() != imageFiles.size())
         {
@@ -499,9 +500,14 @@
             }
 
             cv::Mat image = cv::imread(base_path+imageFiles[k].toStdString());
+            cv::Mat mask_color = cv::imread(base_path+maskFiles[k].toStdString());
+            cv::Mat mask;
+            cv::cvtColor(mask_color, mask, CV_BGR2GRAY);
+            mask = mask > 200;
 
             toRet.objectClouds.push_back(cloud);
             toRet.objectImages.push_back(image);
+            toRet.objectMasks.push_back(mask);
             toRet.objectLabels.push_back(label);
             toRet.objectScanIndices.push_back(scan_number);
         }
