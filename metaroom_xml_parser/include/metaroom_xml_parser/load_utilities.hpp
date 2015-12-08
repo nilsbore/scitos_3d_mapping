@@ -1,6 +1,6 @@
     /********************************************** MERGED CLOUD UTILITIES ****************************************************************************************/
     template <class PointType>
-    boost::shared_ptr<pcl::PointCloud<PointType>> loadMergedCloudFromSingleSweep(std::string sweepXmlPath, bool verbose=false)
+    boost::shared_ptr<pcl::PointCloud<PointType>> loadMergedCloudFromSingleSweep(std::string sweepXmlPath, bool verbose)
     {
         auto sweep = SimpleXMLParser<PointType>::loadRoomFromXML(sweepXmlPath, std::vector<std::string>{"RoomCompleteCloud"},verbose);
 
@@ -8,7 +8,7 @@
     }
 
     template <class PointType>
-    std::vector<boost::shared_ptr<pcl::PointCloud<PointType>>> loadMergedCloudFromMultipleSweeps(std::string folderPath, bool verbose=false)
+    std::vector<boost::shared_ptr<pcl::PointCloud<PointType>>> loadMergedCloudFromMultipleSweeps(std::string folderPath, bool verbose)
     {
         std::vector<boost::shared_ptr<pcl::PointCloud<PointType>>> toRet;
 
@@ -26,7 +26,7 @@
     }
 
     template <class PointType>
-    std::vector<boost::shared_ptr<pcl::PointCloud<PointType>>> loadMergedCloudForTopologicalWaypoint(std::string folderPath, std::string waypoint,bool verbose=false)
+    std::vector<boost::shared_ptr<pcl::PointCloud<PointType>>> loadMergedCloudForTopologicalWaypoint(std::string folderPath, std::string waypoint,bool verbose)
     {
         std::vector<boost::shared_ptr<pcl::PointCloud<PointType>>> toRet;
 
@@ -56,7 +56,7 @@
     /********************************************** INTERMEDIATE CLOUD UTILITIES ****************************************************************************************/
 
     template <class PointType>
-    std::vector<boost::shared_ptr<pcl::PointCloud<PointType>>> loadIntermediateCloudsFromSingleSweep(std::string sweepXmlPath, bool verbose=false)
+    std::vector<boost::shared_ptr<pcl::PointCloud<PointType>>> loadIntermediateCloudsFromSingleSweep(std::string sweepXmlPath, bool verbose)
     {
         auto sweep = SimpleXMLParser<PointType>::loadRoomFromXML(sweepXmlPath, std::vector<std::string>{"RoomIntermediateCloud"},verbose);
 
@@ -64,7 +64,7 @@
     }
 
     template <class PointType>
-    IntermediateCloudCompleteData<PointType> loadIntermediateCloudsCompleteDataFromSingleSweep(std::string sweepXmlPath, bool verbose=false)
+    IntermediateCloudCompleteData<PointType> loadIntermediateCloudsCompleteDataFromSingleSweep(std::string sweepXmlPath, bool verbose)
     {
         auto sweep = SimpleXMLParser<PointType>::loadRoomFromXML(sweepXmlPath, std::vector<std::string>{"RoomIntermediateCloud"},verbose);
 
@@ -79,7 +79,7 @@
     }
 
     template <class PointType>
-    std::vector<std::vector<boost::shared_ptr<pcl::PointCloud<PointType>>>> loadIntermediateCloudsFromMultipleSweeps(std::string folderPath, bool verbose=false)
+    std::vector<std::vector<boost::shared_ptr<pcl::PointCloud<PointType>>>> loadIntermediateCloudsFromMultipleSweeps(std::string folderPath, bool verbose)
     {
         std::vector<std::vector<boost::shared_ptr<pcl::PointCloud<PointType>>>> toRet;
 
@@ -97,7 +97,7 @@
     }
 
     template <class PointType>
-    std::vector<IntermediateCloudCompleteData<PointType>>  loadIntermediateCloudsCompleteDataFromMultipleSweeps(std::string folderPath, bool verbose=false)
+    std::vector<IntermediateCloudCompleteData<PointType>>  loadIntermediateCloudsCompleteDataFromMultipleSweeps(std::string folderPath, bool verbose)
     {
         std::vector<IntermediateCloudCompleteData<PointType>> toRet;
 
@@ -115,7 +115,7 @@
     }
 
     template <class PointType>
-    std::vector<std::vector<boost::shared_ptr<pcl::PointCloud<PointType>>>> loadIntermediateCloudsForTopologicalWaypoint(std::string folderPath, std::string waypoint,bool verbose=false)
+    std::vector<std::vector<boost::shared_ptr<pcl::PointCloud<PointType>>>> loadIntermediateCloudsForTopologicalWaypoint(std::string folderPath, std::string waypoint,bool verbose)
     {
         std::vector<std::vector<boost::shared_ptr<pcl::PointCloud<PointType>>>> toRet;
 
@@ -143,7 +143,7 @@
     }
 
         template <class PointType>
-        std::vector<IntermediateCloudCompleteData<PointType>> loadIntermediateCloudsCompleteDataForTopologicalWaypoint(std::string folderPath, std::string waypoint,bool verbose=false)
+        std::vector<IntermediateCloudCompleteData<PointType>> loadIntermediateCloudsCompleteDataForTopologicalWaypoint(std::string folderPath, std::string waypoint,bool verbose)
     {
         std::vector<IntermediateCloudCompleteData<PointType>> toRet;
 
@@ -172,7 +172,7 @@
 
     /********************************************** INTERMEDIATE POSITION IMAGES UTILITIES ****************************************************************************************/
     template <class PointType>
-    std::vector<typename SimpleXMLParser<PointType>::IntermediatePositionImages> loadIntermediatePositionImagesFromSingleSweep(std::string sweepXmlPath, bool verbose=false)
+    std::vector<typename SimpleXMLParser<PointType>::IntermediatePositionImages> loadIntermediatePositionImagesFromSingleSweep(std::string sweepXmlPath, bool verbose)
     {
         auto sweep = SimpleXMLParser<PointType>::loadRoomFromXML(sweepXmlPath, std::vector<std::string>{"IntermediatePosition"},verbose);
 
@@ -180,7 +180,7 @@
     }
 
     template <class PointType>
-    std::vector<std::vector<typename SimpleXMLParser<PointType>::IntermediatePositionImages>> loadIntermediatePositionImagesFromMultipleSweeps(std::string folderPath, bool verbose=false)
+    std::vector<std::vector<typename SimpleXMLParser<PointType>::IntermediatePositionImages>> loadIntermediatePositionImagesFromMultipleSweeps(std::string folderPath, bool verbose)
     {
         std::vector<std::vector<typename SimpleXMLParser<PointType>::IntermediatePositionImages>> toRet;
 
@@ -198,7 +198,7 @@
     }
 
     template <class PointType>
-    std::vector<std::vector<boost::shared_ptr<pcl::PointCloud<PointType>>>> loadIntermediatePositionImagesForTopologicalWaypoint(std::string folderPath, std::string waypoint,bool verbose=false)
+    std::vector<std::vector<boost::shared_ptr<pcl::PointCloud<PointType>>>> loadIntermediatePositionImagesForTopologicalWaypoint(std::string folderPath, std::string waypoint,bool verbose)
     {
         std::vector<std::vector<typename SimpleXMLParser<PointType>::IntermediatePositionImages>> toRet;
 
@@ -228,7 +228,7 @@
 
     /********************************************** SWEEP XML UTILITIES ****************************************************************************************/
     template <class PointType>
-    std::vector<std::string>  getSweepXmls(std::string folderPath, bool verbose = false)
+    std::vector<std::string>  getSweepXmls(std::string folderPath, bool verbose)
     {
         std::vector<std::string> toRet;
 
@@ -286,7 +286,7 @@
     }
 
     template <class PointType>
-    std::vector<std::string>  getSweepXmlsForTopologicalWaypoint(std::string folderPath, std::string waypoint, bool verbose= false)
+    std::vector<std::string>  getSweepXmlsForTopologicalWaypoint(std::string folderPath, std::string waypoint, bool verbose)
     {
 
         SimpleSummaryParser summary_parser;
@@ -360,7 +360,7 @@
     /********************************************** DYNAMIC CLUSTER UTILITIES ****************************************************************************************/
     ///* The default parameters are the same as during the metaroom update
     template <class PointType>
-    std::vector<boost::shared_ptr<pcl::PointCloud<PointType>>> loadDynamicClustersFromSingleSweep(std::string sweepXmlPath, bool verbose=false, double tolerance = 0.05, int min_cluster_size = 75, int max_cluster_size=50000)
+    std::vector<boost::shared_ptr<pcl::PointCloud<PointType>>> loadDynamicClustersFromSingleSweep(std::string sweepXmlPath, bool verbose, double tolerance, int min_cluster_size, int max_cluster_size)
     {
         std::vector<boost::shared_ptr<pcl::PointCloud<PointType>>> toRet;
 
@@ -406,7 +406,7 @@
     }
 
     template <class PointType>
-    std::vector<std::vector<boost::shared_ptr<pcl::PointCloud<PointType>>>> loadDynamicClustersFromMultipleSweeps(std::string folderPath, bool verbose=false, double tolerance = 0.05, int min_cluster_size = 75, int max_cluster_size=50000)
+    std::vector<std::vector<boost::shared_ptr<pcl::PointCloud<PointType>>>> loadDynamicClustersFromMultipleSweeps(std::string folderPath, bool verbose, double tolerance, int min_cluster_size, int max_cluster_size)
     {
         std::vector<std::vector<boost::shared_ptr<pcl::PointCloud<PointType>>>> toRet;
 
@@ -423,7 +423,7 @@
     }
 
     template <class PointType>
-    std::vector<std::vector<boost::shared_ptr<pcl::PointCloud<PointType>>>> loadDynamicClustersForTopologicalWaypoint(std::string folderPath, std::string waypoint,bool verbose=false, double tolerance = 0.05, int min_cluster_size = 75, int max_cluster_size=50000)
+    std::vector<std::vector<boost::shared_ptr<pcl::PointCloud<PointType>>>> loadDynamicClustersForTopologicalWaypoint(std::string folderPath, std::string waypoint,bool verbose, double tolerance, int min_cluster_size, int max_cluster_size)
     {
         std::vector<std::vector<boost::shared_ptr<pcl::PointCloud<PointType>>>> toRet;
 
@@ -450,7 +450,7 @@
     }
 
     /********************************************** LABELLED DATA UTILITIES ****************************************************************************************/template <class PointType>
-    LabelledData<PointType> loadLabelledDataFromSingleSweep(std::string sweepXmlPath, bool verbose = false)
+    LabelledData<PointType> loadLabelledDataFromSingleSweep(std::string sweepXmlPath, bool verbose)
     {
         LabelledData<PointType> toRet;
 
