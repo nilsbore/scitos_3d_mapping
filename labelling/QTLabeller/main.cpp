@@ -20,9 +20,13 @@ int main(int argc, char *argv[])
       return -1;
    }
 
+   path+="/";
+
    QApplication a(argc, argv);
    MainWindow w;
    w.show();
+
+
 
    w.parseInputPath(path, waypId);
    w.readLabels(QString(labels.c_str()),QString(display_labels.c_str()));

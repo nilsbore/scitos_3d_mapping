@@ -35,8 +35,8 @@ int main(int argc, char** argv)
     ros::init(argc, argv, "load_from_mongo_node");
     ros::NodeHandle n;
 
-    mongodb_store::MessageStoreProxy message_store_summary(n,"summary","metric_maps");
-    mongodb_store::MessageStoreProxy message_store_data(n,"data","metric_maps");
+    mongodb_store::MessageStoreProxy message_store_summary(n,"metric_maps.summary","metric_db");
+    mongodb_store::MessageStoreProxy message_store_data(n,"metric_maps.data","metric_db");
 
     std::vector< boost::shared_ptr<std_msgs::String> > results;
     if(message_store_summary.queryNamed<std_msgs::String>("metric_map_room_xml", results,false)) {

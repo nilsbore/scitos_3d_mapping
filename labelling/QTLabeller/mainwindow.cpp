@@ -121,9 +121,10 @@ void MainWindow::showNextLabelSlot()
    qDebug()<<"Showing the next label image"<<endl;
    m_currentImage++;
 
-   if (m_currentImage > m_allMasks.size())
+   if (m_currentImage >= m_allMasks.size())
    {
       m_currentImage = m_allMasks.size() - 1;
+      qDebug()<<"You have reached the end of the labels list";
    }
 
    displayImage(m_currentImage, m_allMasks, m_allObjectFiles);
@@ -134,7 +135,10 @@ void MainWindow::showPreviousLabelSlot()
    qDebug()<<"Showing the previous label image"<<endl;
    m_currentImage--;
 
-   if (m_currentImage <0) m_currentImage = 0;
+   if (m_currentImage <0) {
+       m_currentImage = 0;
+       qDebug()<<"You have reached the beginning of the labels list";
+   }
 
    displayImage(m_currentImage, m_allMasks, m_allObjectFiles);
 }

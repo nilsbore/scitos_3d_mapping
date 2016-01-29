@@ -115,7 +115,7 @@ void create_point_cloud_from_label(std::string label_path, std::string sweepPath
    //   // transform into the room frame of reference
    CloudPtr transformedCloud(new Cloud());
    pcl_ros::transformPointCloud(*filteredCloud, *transformedCloud,cloudTransform);
-   pcl::transformPointCloud (*transformedCloud, *transformedCloud, roomTransform);
+   //pcl::transformPointCloud (*transformedCloud, *transformedCloud, roomTransform);
 
    pcl::io::savePCDFileBinary(rootPcdName, *transformedCloud);
    std::cout<<"Label point cloud saved at "<<rootPcdName<<std::endl;
