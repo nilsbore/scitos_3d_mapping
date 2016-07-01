@@ -201,6 +201,7 @@ public:
         Eigen::Matrix4f transformFromOrigin = Eigen::Affine3f(Eigen::Translation3f(m_SensorOrigin)).matrix();
         Eigen::Matrix4f transformToOrigin = transformFromOrigin.inverse();
 
+        float max_distance = 3.0f;
 
         const double pi = std::acos(-1.0);
         /*********** CLUSTERS TO BE REMOVED ************************************/
@@ -255,7 +256,7 @@ public:
                 if (thetaphi[thetabin][phibin] != 0.0)
                 {
                     occluded++;
-                    if (thetaphi[thetabin][phibin] > r)
+                    if (thetaphi[thetabin][phibin] > r || r > max_distance)
                     {
                         infront++;
                         pointsFront->points.push_back(transformedMetaRoomCloud->points[k]);
@@ -327,8 +328,7 @@ public:
                 if (thetaphi[thetabin][phibin] != 0.0)
                 {
                     occluded++;
-                    float max_distance = 3.0f;
-                    if (thetaphi[thetabin][phibin] > r || r > max_distance)
+                    if (thetaphi[thetabin][phibin] > r)
                     {
                         infront++;
                         pointsFront->points.push_back(transformedRoomCloud->points[k]);
