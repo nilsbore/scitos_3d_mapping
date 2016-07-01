@@ -327,7 +327,8 @@ public:
                 if (thetaphi[thetabin][phibin] != 0.0)
                 {
                     occluded++;
-                    if (thetaphi[thetabin][phibin] > r)
+                    float max_distance = 3.0f;
+                    if (thetaphi[thetabin][phibin] > r || r > max_distance)
                     {
                         infront++;
                         pointsFront->points.push_back(transformedRoomCloud->points[k]);
