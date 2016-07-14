@@ -118,10 +118,15 @@ RobotContainer::~RobotContainer(){
 
 void RobotContainer::initializeCamera(double fx, double fy, double cx, double cy, unsigned int w, unsigned int h)
 {
-    fx = 535;
-    fy = fx;
-    cx = double(w-1.0)/2.0;
-    cy = double(h-1.0)/2.0;
+    // 533.796412, 0.000000, 314.863333, 0.000000, 533.112736, 241.271340
+    fx = 533.796412;
+    fy = 533.112736;
+    cx = 314.863333;
+    cy = 241.271340;
+//    fx = 535;
+//    fy = fx;
+//    cx = double(w-1.0)/2.0;
+//    cy = double(h-1.0)/2.0;
     std::cout<<"Initializing camera with parameters "<<fx<<"  "<<fy<<"  "<<cx<<"  "<<cy<<"  "<<w<<"  "<<h<<std::endl;
     width = w;
     height = h;
@@ -240,7 +245,7 @@ void RobotContainer::addToTraining(std::string path){
     */
 }
 
-std::vector< CostFunction * > getMatchesRansac(std::vector< ProblemFrameConnection * > & pc_vec, float weight = 1, float threshold = 0.015, int ransac_iter = 200000, int nr_points = 3){
+std::vector< CostFunction * > getMatchesRansac(std::vector< ProblemFrameConnection * > & pc_vec, float weight = 1, float threshold = 0.005, int ransac_iter = 200000, int nr_points = 3){
     std::vector<int> owner;
     std::vector<int> match_id;
     std::vector< Eigen::Vector3f > src_points;
@@ -435,8 +440,8 @@ std::vector<Eigen::Matrix4f> RobotContainer::runInitialTraining(){
     }
 
     Solve(options, &problem, &summary);
-    pair3DError::optimizeCameraParams = true;
-    Solve(options, &problem, &summary);
+    pair3DError::optimizeCameraParams = false; //true;
+    //Solve(options, &problem, &summary);
     //std::cout << summary.FullReport() << "\n";
 
     //1st forward Y loop

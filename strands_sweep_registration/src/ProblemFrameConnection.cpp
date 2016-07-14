@@ -33,7 +33,7 @@ void ProblemFrameConnection::addMatchesToProblem(ceres::Problem & problem, float
         //CostFunction* err = new pair3DError(src_kp.pt.x,src_kp.pt.y,sz,dst_kp.pt.x,dst_kp.pt.y,dz,weight/pow(sz*sz+dz*dz,2));
         CostFunction* err = new pair3DError(src_kp.pt.x,src_kp.pt.y,sz,dst_kp.pt.x,dst_kp.pt.y,dz,weight);
         problem.AddResidualBlock(err, 0, src_variable, dst_variable, params);
-        problem.AddResidualBlock(err, new ceres::HuberLoss(0.1), src_variable, dst_variable, params);
+        problem.AddResidualBlock(err, new ceres::HuberLoss(0.5), src_variable, dst_variable, params);
 	}
 }
 
