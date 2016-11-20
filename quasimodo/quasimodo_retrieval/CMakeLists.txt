@@ -13,7 +13,7 @@ find_package(catkin REQUIRED COMPONENTS roscpp tf sensor_msgs std_msgs image_geo
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
 
-include_directories(${catkin_INCLUDE_DIRS})
+include_directories(include ${catkin_INCLUDE_DIRS})
 
 # This is the root dir of https://github.com/nilsbore/dynamic_object_retrieval
 #set(retrieval_project_dir ${CMAKE_CURRENT_SOURCE_DIR}/../../dynamic_object_retrieval)
@@ -161,9 +161,9 @@ catkin_package(
 # include_directories(include)
 
 ## Declare a C++ library
-# add_library(quasimodo_retrieval
-#   src/${PROJECT_NAME}/quasimodo_retrieval.cpp
-# )
+add_library(filter_soma_objects
+  src/${PROJECT_NAME}/filter_soma_objects.cpp include/${PROJECT_NAME}/filter_soma_objects.h
+)
 
 ## Add cmake target dependencies of the library
 ## as an example, code may need to be generated before libraries
@@ -195,6 +195,10 @@ add_dependencies(quasimodo_logging_server quasimodo_msgs_generate_messages_cpp s
 #add_dependencies(quasimodo_retrieval_publisher ${catkin_EXPORTED_TARGETS})
 #add_dependencies(quasimodo_visualization_server ${catkin_EXPORTED_TARGETS})
 add_dependencies(quasimodo_retrieval_node ${PROJECT_NAME}_gencfg)
+
+target_link_libraries(filter_soma_objects
+  ${catkin_LIBRARIES}
+)
 
 ## Specify libraries to link a library or executable target against
 target_link_libraries(quasimodo_retrieval_server
@@ -261,6 +265,7 @@ target_link_libraries(quasimodo_retrieval_node
 target_link_libraries(quasimodo_filtering_node
 #  ${retrieval_libraries}
 #  ${benchmark_libraries}
+  filter_soma_objects
   ${OpenCV_LIBS}
   ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES}
   ${PCL_LIBRARIES}
@@ -298,7 +303,7 @@ install(
 )
 
 # Mark executables and/or libraries for installation
-install(TARGETS quasimodo_retrieval_server quasimodo_retrieval_publisher quasimodo_visualization_server quasimodo_filtering_node
+install(TARGETS quasimodo_retrieval_server quasimodo_retrieval_publisher quasimodo_visualization_server quasimodo_filtering_node filter_soma_objects
                 quasimodo_visualize_model quasimodo_visualize_retrieval_cloud quasimodo_retrieval_node quasimodo_retrieve_observation quasimodo_logging_server
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
