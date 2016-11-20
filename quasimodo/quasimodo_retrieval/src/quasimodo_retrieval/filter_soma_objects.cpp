@@ -60,29 +60,29 @@ void filter_soma_objects(ros::NodeHandle& n, quasimodo_msgs::query_cloud::Respon
 {
     ros::ServiceClient service = n.serviceClient<soma_manager::SOMAQueryObjs>("/soma/query_objs");
     service.waitForExistence(ros::Duration(1.0));
-    for (size_t i = 0; i < raw_res.retrieved_clouds.size(); ++i) {
+    for (size_t i = 0; i < raw_res.result.retrieved_clouds.size(); ++i) {
         soma_manager::SOMAQueryObjs::Request soma_req;
         soma_req.uselowertime = false;
         soma_req.useuppertime = false;
         soma_req.usedates = false;
         soma_req.useweekday = false;
         soma_req.useroi_id = false;
-        float x = raw_res.global_poses.position.x;
-        float y = raw_res.global_poses.position.y;
+        float x = raw_res.result.global_poses.position.x;
+        float y = raw_res.result.global_poses.position.y;
         soma_req.custom_roi = vector<float> { x - 0.3, x + 0.3, y - 0.3, x + 0.3 };
         soma_manager::SOMAQueryObjs::Response soma_resp;
         service.call(soma_req, soma_resp);
         if (objects.size() == 0) { // keep this object in the filtered message
-            res.retrieved_clouds.push_back(raw_res.retrieved_clouds[i]);
-            res.retrieved_initial_poses.push_back(raw_res.retrieved_initial_poses[i]);
-            res.retrieved_images.push_back(raw_res.retrieved_images[i]);
-            res.retrieved_depths.push_back(raw_res.retrieved_depths[i]);
-            res.retrieved_masks.push_back(raw_res.retrieved_masks[i]);
-            res.retrieved_image_paths.push_back(raw_res.retrieved_image_paths[i]);
-            res.retrieved_distance_scores.push_back(raw_res.retrieved_distance_scores[i]);
-            res.segment_indices.push_back(raw_res.segment_indices[i]);
-            res.vocabulary_ids.push_back(raw_res.vocabulary_ids[i]);
-            res.global_poses.push_back(raw_res.global_poses[i]);
+            res.result.retrieved_clouds.push_back(raw_res.result.retrieved_clouds[i]);
+            res.result.retrieved_initial_poses.push_back(raw_res.result.retrieved_initial_poses[i]);
+            res.result.retrieved_images.push_back(raw_res.result.retrieved_images[i]);
+            res.result.retrieved_depths.push_back(raw_res.result.retrieved_depths[i]);
+            res.result.retrieved_masks.push_back(raw_res.result.retrieved_masks[i]);
+            res.result.retrieved_image_paths.push_back(raw_res.result.retrieved_image_paths[i]);
+            res.result.retrieved_distance_scores.push_back(raw_res.result.retrieved_distance_scores[i]);
+            res.result.segment_indices.push_back(raw_res.result.segment_indices[i]);
+            res.result.vocabulary_ids.push_back(raw_res.result.vocabulary_ids[i]);
+            res.result.global_poses.push_back(raw_res.result.global_poses[i]);
         }
     }
 }
