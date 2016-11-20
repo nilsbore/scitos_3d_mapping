@@ -15,10 +15,9 @@ public:
     filtering_node(const string& name)
     {
         ros::NodeHandle pn("~");
-
-        service = n.advertiseService("/quasimodo_retrieval_service", &filtering_node::service_callback, this);
-
-
+        string service_name;
+        pn.param<string>("service_name", service_name, "/quasimodo_retrieval_service");
+        service = n.advertiseService(service_name, &filtering_node::service_callback, this);
     }
 
     bool service_callback(quasimodo_msgs::query_cloud::Request& req,
@@ -29,6 +28,7 @@ public:
         quasimodo_msgs::query_cloud::Response raw_res;
         service.call(req, raw_res);
         quasimodo_retrieval::filter_soma_objects(n, raw_res, res);
+        return true;
     }
 
 } // class filtering_node

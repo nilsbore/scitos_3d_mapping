@@ -139,6 +139,8 @@ public:
 
         pn.param<std::string>("output", retrieval_output, std::string("retrieval_result"));
         pn.param<std::string>("input", retrieval_input, std::string("/models/query"));
+        string service_name;
+        pn.param<string>("service_name", service_name, "/quasimodo_retrieval_service");
 
         summary.load(vocabulary_path);
         cout << "Loaded summary from: " << (vocabulary_path / "vocabulary_summary.json").string() << endl;
@@ -174,7 +176,7 @@ public:
             pubs[i] = n.advertise<sensor_msgs::PointCloud2>(string("/retrieval_cloud/") + to_string(i), 1, true);
         }
         sub = n.subscribe(retrieval_input, 10, &retrieval_node::run_retrieval, this);
-        service = n.advertiseService("/quasimodo_retrieval_service", &retrieval_node::service_callback, this);
+        service = n.advertiseService(service_name, &retrieval_node::service_callback, this);
         /*
         vector<string> folder_xmls = semantic_map_load_utilties::getSweepXmls<PointT>(data_path.string(), true);
         for (const string& xml : folder_xmls) {
@@ -661,7 +663,7 @@ public:
                 tie(masks[i], images[i], depths[i], inds) = generate_images_for_mongodb_object(retrieved_clouds[i], K, base_path(results.first[i].first), sweep_transforms);
             }
             else {
-                auto sweep_data = SimpleXMLParser<PointT>::loadRoomFromXML(sweep_paths[i].string(), std::vector<std::string>{"RoomIntermediateCloud"}, false, false);    
+                auto sweep_data = SimpleXMLParser<PointT>::loadRoomFromXML(sweep_paths[i].string(), std::vector<std::string>{"RoomIntermediateCloud"}, false, false);
                 for (tf::StampedTransform& t : sweep_data.vIntermediateRoomCloudTransformsRegistered) {
                     Eigen::Affine3d e;
                     tf::transformTFToEigen(t, e);

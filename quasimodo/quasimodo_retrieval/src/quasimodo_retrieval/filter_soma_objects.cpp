@@ -60,7 +60,6 @@ void filter_soma_objects(ros::NodeHandle& n, quasimodo_msgs::query_cloud::Respon
 {
     ros::ServiceClient service = n.serviceClient<soma_manager::SOMAQueryObjs>("/soma/query_objs");
     service.waitForExistence(ros::Duration(1.0));
-    vector<size_t> remove_inds;
     for (size_t i = 0; i < raw_res.retrieved_clouds.size(); ++i) {
         soma_manager::SOMAQueryObjs::Request soma_req;
         soma_req.uselowertime = false;
@@ -73,11 +72,19 @@ void filter_soma_objects(ros::NodeHandle& n, quasimodo_msgs::query_cloud::Respon
         soma_req.custom_roi = vector<float> { x - 0.3, x + 0.3, y - 0.3, x + 0.3 };
         soma_manager::SOMAQueryObjs::Response soma_resp;
         service.call(soma_req, soma_resp);
-        if (objects.size() > 0) {
-            remove_inds.push_back(i);
+        if (objects.size() == 0) { // keep this object in the filtered message
+            res.retrieved_clouds.push_back(raw_res.retrieved_clouds[i]);
+            res.retrieved_initial_poses.push_back(raw_res.retrieved_initial_poses[i]);
+            res.retrieved_images.push_back(raw_res.retrieved_images[i]);
+            res.retrieved_depths.push_back(raw_res.retrieved_depths[i]);
+            res.retrieved_masks.push_back(raw_res.retrieved_masks[i]);
+            res.retrieved_image_paths.push_back(raw_res.retrieved_image_paths[i]);
+            res.retrieved_distance_scores.push_back(raw_res.retrieved_distance_scores[i]);
+            res.segment_indices.push_back(raw_res.segment_indices[i]);
+            res.vocabulary_ids.push_back(raw_res.vocabulary_ids[i]);
+            res.global_poses.push_back(raw_res.global_poses[i]);
         }
     }
-
 }
 
 } // namespace quasimodo_retrieval
