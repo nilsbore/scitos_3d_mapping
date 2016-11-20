@@ -55,6 +55,8 @@
 
 namespace quasimodo_retrieval {
 
+using namespace std;
+
 void filter_soma_objects(ros::NodeHandle& n, quasimodo_msgs::query_cloud::Response& raw_res,
                          quasimodo_msgs::query_cloud::Response& res)
 {
@@ -67,12 +69,12 @@ void filter_soma_objects(ros::NodeHandle& n, quasimodo_msgs::query_cloud::Respon
         soma_req.usedates = false;
         soma_req.useweekday = false;
         soma_req.useroi_id = false;
-        float x = raw_res.result.global_poses.position.x;
-        float y = raw_res.result.global_poses.position.y;
-        soma_req.custom_roi = vector<float> { x - 0.3, x + 0.3, y - 0.3, x + 0.3 };
+        float x = raw_res.result.global_poses[i].position.x;
+        float y = raw_res.result.global_poses[i].position.y;
+        soma_req.custom_roi = vector<float> { x - 0.3f, x + 0.3f, y - 0.3f, x + 0.3f };
         soma_manager::SOMAQueryObjs::Response soma_resp;
         service.call(soma_req, soma_resp);
-        if (objects.size() == 0) { // keep this object in the filtered message
+        if (soma_resp.objects.size() == 0) { // keep this object in the filtered message
             res.result.retrieved_clouds.push_back(raw_res.result.retrieved_clouds[i]);
             res.result.retrieved_initial_poses.push_back(raw_res.result.retrieved_initial_poses[i]);
             res.result.retrieved_images.push_back(raw_res.result.retrieved_images[i]);

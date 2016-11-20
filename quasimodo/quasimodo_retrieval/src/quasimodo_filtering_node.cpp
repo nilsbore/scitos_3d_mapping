@@ -11,6 +11,7 @@ class filtering_node {
 public:
 
     ros::NodeHandle n;
+    ros::ServiceServer service;
 
     filtering_node(const string& name)
     {
@@ -31,7 +32,7 @@ public:
         return true;
     }
 
-} // class filtering_node
+}; // class filtering_node
 
 int main(int argc, char** argv)
 {
