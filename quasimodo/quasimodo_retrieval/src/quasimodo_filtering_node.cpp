@@ -12,19 +12,21 @@ public:
 
     ros::NodeHandle n;
     ros::ServiceServer service;
+    string raw_service_name;
 
     filtering_node(const string& name)
     {
         ros::NodeHandle pn("~");
         string service_name;
-        pn.param<string>("service_name", service_name, "/quasimodo_retrieval_service");
+        pn.param<string>("filtered_service_name", service_name, "/quasimodo_retrieval_service");
+        pn.param<string>("raw_service_name", raw_service_name, "/raw_quasimodo_retrieval_service");
         service = n.advertiseService(service_name, &filtering_node::service_callback, this);
     }
 
     bool service_callback(quasimodo_msgs::query_cloud::Request& req,
                           quasimodo_msgs::query_cloud::Response& res)
     {
-        ros::ServiceClient service = n.serviceClient<quasimodo_msgs::query_cloud>("/quasimodo_retrieval_service");
+        ros::ServiceClient service = n.serviceClient<quasimodo_msgs::query_cloud>(raw_service_name);
         service.waitForExistence(ros::Duration(1.0));
         quasimodo_msgs::query_cloud::Response raw_res;
         service.call(req, raw_res);
