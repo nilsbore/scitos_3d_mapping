@@ -748,7 +748,19 @@ reglib::Model * getAVMetaroom(std::string path, bool compute_edges = true, std::
 	}
 	//printf("%s::%i\n",__PRETTY_FUNCTION__,__LINE__);
 */
-    //initSegment(*np,fullmodel);
+//	double startTime_store = reglib::getTime();
+//	fullmodel->pointspath = sweep_folder+"/fullmodel_superpoints.bin";
+//	std::string soma_id = quasimodo_brain::initSegment(*np,fullmodel);
+//	printf("soma_id: %i\n",soma_id.c_str());
+//	printf("add time: %6.6f\n",reglib::getTime()-startTime_store);
+
+//	startTime_store = reglib::getTime();
+//	std::string soma_id2 = quasimodo_brain::initSegment(*np,fullmodel);
+//	printf("soma_id2: %i\n",soma_id2.c_str());
+//	printf("add2 time: %6.6f\n",reglib::getTime()-startTime_store);
+
+//	reglib::Model * test = quasimodo_brain::getModelFromSegment(*np,soma_id);
+//	printf("load time: %6.6f\n",reglib::getTime()-startTime_store);
 //exit(0);
 	return fullmodel;
 }
@@ -1682,12 +1694,10 @@ void sendRoomToSomaLLSD(std::string path){
 				cloud->width	= width;
 				cloud->height	= height;
 				cloud->points.resize(width*height);
-
 				for(unsigned int w = 0; w < width; w++){
 					for(unsigned int h = 0; h < height;h++){
 						int ind = h*width+w;
 						double z = idepth*double(depthdata[ind]);
-
 						pcl::PointXYZRGB p;
 						p.b = rgbdata[3*ind+0];
 						p.g = rgbdata[3*ind+1];
@@ -2197,7 +2207,17 @@ void add_soma_id_callback(const std_msgs::String::ConstPtr& msg){
 	printf("================================================================================\n");
 	printf("=============================add_soma_id_callback===============================\n");
 	printf("================================================================================\n");
-	addSceneToLastMetaroom(msg->data);
+	if(msg->data.compare("done") == 0){
+		vector<string> sweep_xmls = semantic_map_load_utilties::getSweepXmls<PointType>(overall_folder);
+		if(sweep_xmls.size() == 0){return ;}
+		std::string lastSweep = sweep_xmls.back();
+		//if(prevind >= 0){
+			sendRoomToSomaLLSD(lastSweep);
+			sendMetaroomToServer(lastSweep);
+		//}
+	}else{
+		addSceneToLastMetaroom(msg->data);
+	}
 }
 
 
@@ -2365,6 +2385,7 @@ int main(int argc, char** argv){
 
 		if(soma_id_subs.size() == 0){
 			soma_id_subs.push_back(n.subscribe("/quasimodo/segmentation/in/soma_segment_id", 1000,add_soma_id_callback));
+			soma_id_subs.push_back(n.subscribe("/surface_based_object_learning/scenes", 1000,add_soma_id_callback));
 		}
 	}
 
