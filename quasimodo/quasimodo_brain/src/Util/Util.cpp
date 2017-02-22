@@ -1239,7 +1239,7 @@ void writePose(QXmlStreamWriter* xmlWriter, Eigen::Matrix4d pose){
 	xmlWriter->writeEndElement(); //Rotation
 }
 
-void remove_old_seg(std::string sweep_folder){
+void remove_old_seg(std::string sweep_folder, bool backwards){
 	printf("remove_old_seg: %s\n",sweep_folder.c_str());
 	DIR *dir;
 	struct dirent *ent;
@@ -1248,25 +1248,49 @@ void remove_old_seg(std::string sweep_folder){
 		while ((ent = readdir (dir)) != NULL) {
 			std::string file = std::string(ent->d_name);
 
-			if (file.find("dynamic_obj") !=std::string::npos && (file.find(".xml") !=std::string::npos || file.find(".pcd") !=std::string::npos)){
-				printf ("removing %s\n", ent->d_name);
-				std::remove((sweep_folder+"/"+file).c_str());
-			}
+            if (backwards) {
+                if (file.find("back_dynamic_obj") !=std::string::npos && (file.find(".xml") !=std::string::npos || file.find(".pcd") !=std::string::npos)){
+                    printf ("removing %s\n", ent->d_name);
+                    std::remove((sweep_folder+"/"+file).c_str());
+                }
 
-			if (file.find("dynamicmask") !=std::string::npos && file.find(".png") !=std::string::npos){
-				printf ("removing %s\n", ent->d_name);
-				std::remove((sweep_folder+"/"+file).c_str());
-			}
+                if (file.find("back_dynamicmask") !=std::string::npos && file.find(".png") !=std::string::npos){
+                    printf ("removing %s\n", ent->d_name);
+                    std::remove((sweep_folder+"/"+file).c_str());
+                }
 
-			if (file.find("moving_obj") !=std::string::npos && (file.find(".xml") !=std::string::npos || file.find(".pcd") !=std::string::npos)){
-				printf ("removing %s\n", ent->d_name);
-				std::remove((sweep_folder+"/"+file).c_str());
-			}
+                if (file.find("back_moving_obj") !=std::string::npos && (file.find(".xml") !=std::string::npos || file.find(".pcd") !=std::string::npos)){
+                    printf ("removing %s\n", ent->d_name);
+                    std::remove((sweep_folder+"/"+file).c_str());
+                }
 
-			if (file.find("movingmask") !=std::string::npos && file.find(".png") !=std::string::npos){
-				printf ("removing %s\n", ent->d_name);
-				std::remove((sweep_folder+"/"+file).c_str());
-			}
+                if (file.find("back_movingmask") !=std::string::npos && file.find(".png") !=std::string::npos){
+                    printf ("removing %s\n", ent->d_name);
+                    std::remove((sweep_folder+"/"+file).c_str());
+                }
+            }
+			else {
+                if (file.find("back_dynamic_obj") == std::string::npos && file.find("dynamic_obj") !=std::string::npos && (file.find(".xml") !=std::string::npos || file.find(".pcd") !=std::string::npos)){
+                    printf ("removing %s\n", ent->d_name);
+                    std::remove((sweep_folder+"/"+file).c_str());
+                }
+
+                if (file.find("back_dynamicmask") == std::string::npos && file.find("dynamicmask") !=std::string::npos && file.find(".png") !=std::string::npos){
+                    printf ("removing %s\n", ent->d_name);
+                    std::remove((sweep_folder+"/"+file).c_str());
+                }
+
+                if (file.find("back_moving_obj") == std::string::npos && file.find("moving_obj") !=std::string::npos && (file.find(".xml") !=std::string::npos || file.find(".pcd") !=std::string::npos)){
+                    printf ("removing %s\n", ent->d_name);
+                    std::remove((sweep_folder+"/"+file).c_str());
+                }
+
+                if (file.find("back_movingmask") == std::string::npos && file.find("movingmask") !=std::string::npos && file.find(".png") !=std::string::npos){
+                    printf ("removing %s\n", ent->d_name);
+                    std::remove((sweep_folder+"/"+file).c_str());
+                }
+            }
+
 		}
 		closedir (dir);
 	}

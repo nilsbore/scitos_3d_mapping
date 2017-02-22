@@ -150,7 +150,7 @@ void writeXml(std::string xmlFile, std::vector<reglib::RGBDFrame *> & frames, st
 
 void writePose(QXmlStreamWriter* xmlWriter, Eigen::Matrix4d pose);
 
-void remove_old_seg(std::string sweep_folder);
+void remove_old_seg(std::string sweep_folder, bool backwards = false);
 
 std::string replaceAll(std::string str, std::string from, std::string to);
 
