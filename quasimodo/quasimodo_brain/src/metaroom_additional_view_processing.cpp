@@ -120,6 +120,7 @@ bool backwards = false;
 bool recomputeRelativePoses = false;
 bool do_last_and_send = true;
 bool add_to_soma = false;
+bool send_previous = true;
 
 void sendMetaroomToServer(std::string path);
 bool testDynamicObjectServiceCallback(std::string path);
@@ -506,6 +507,57 @@ reglib::Model * getAVMetaroom(std::string path, bool compute_edges = true, std::
 
 int totalcounter = 0;
 
+void saveRelativePoses(const std::string& sweep_folder, const std::string& previous_sweep,
+					   std::vector<Eigen::Matrix4d, Eigen::aligned_allocator<Eigen::Matrix4d> >& model_relative_poses)
+{
+	std::string filename;
+	if (backwards) {
+	 	filename = sweep_folder + "back_relative_model_poses.xml";
+	}
+	else {
+		filename = sweep_folder + "relative_model_poses.xml";
+	}
+
+	QFile file(filename.c_str());
+	if (file.exists()) {
+		file.remove();
+	}
+	if (!file.open(QIODevice::ReadWrite | QIODevice::Text)) {
+		std::cerr << "Could not open file " << filename << " to save dynamic object as XML" << std::endl;
+	}
+	{
+		QXmlStreamWriter xmlWriter;
+		xmlWriter.setDevice(&file);
+
+		xmlWriter.writeStartDocument();
+
+		xmlWriter.writeStartElement("RegistrationResults");
+
+		xmlWriter.writeStartElement("ComparedSweep");
+		xmlWriter.writeAttribute("Path", previous_sweep.c_str());
+		xmlWriter.writeEndElement();
+
+		xmlWriter.writeStartElement("Poses");
+
+		for (size_t i = 0; i < model_relative_poses.size(); ++i) {
+			QString PString;
+	        for (size_t y = 0; y < 4; ++y) {
+				for (size_t x = 0; x < 4; ++x) {
+		            PString += QString::number(model_relative_poses[i](y, x));
+		            PString += ",";
+				}
+	        }
+			QString AttributeString("Frame");
+			AttributeString += QString::number(i);
+	        xmlWriter.writeAttribute(AttributeString, PString);
+		}
+
+		xmlWriter.writeEndElement();
+		xmlWriter.writeEndElement();
+		xmlWriter.writeEndDocument();
+	}
+}
+
 int processMetaroom(CloudPtr dyncloud, std::string path, bool store_old_xml = true){
 	path = quasimodo_brain::replaceAll(path, "//", "/");
 	quasimodo_brain::cleanPath(path);
@@ -585,8 +637,9 @@ int processMetaroom(CloudPtr dyncloud, std::string path, bool store_old_xml = tr
 	std::vector< std::vector< cv::Mat > > dynamic;
 
 	std::vector< reglib::Model * > bgs;
+	std::string prev;
 	if(prevind != -1){
-		std::string prev = sweep_xmls[prevind];
+		prev = sweep_xmls[prevind];
 		printf("prev: %s\n",prev.c_str());
 		reglib::Model * bg = getAVMetaroom(prev);
 		if(bg->frames.size() == 0){
@@ -627,7 +680,9 @@ int processMetaroom(CloudPtr dyncloud, std::string path, bool store_old_xml = tr
 
 		auto sweep = SimpleXMLParser<PointType>::loadRoomFromXML(path, std::vector<std::string>{},false);
 
-		quasimodo_brain::segment(bgs,models,internal,external,dynamic,visualization_lvl,saveVisuals);
+		std::vector<Eigen::Matrix4d, Eigen::aligned_allocator<Eigen::Matrix4d> > model_relative_poses;
+		quasimodo_brain::segment(bgs,models,internal,external,dynamic,visualization_lvl,saveVisuals, &model_relative_poses);
+		saveRelativePoses(sweep_folder, prev, model_relative_poses);
 
         quasimodo_brain::remove_old_seg(sweep_folder, backwards);
 		if(models.size() == 0){	returnval = 2;}
@@ -1564,7 +1619,7 @@ void processSweep(std::string path, std::string savePath){
 		prevind = i;
 	}
 
-	if(prevind >= 0){//Submit last metaroom results if not previously sent
+    if(prevind >= 0 && send && send_previous){//Submit last metaroom results if not previously sent
 		sendMetaroomToServer(sweep_xmls[prevind]);
 	}
 }
@@ -1647,10 +1702,10 @@ bool segmentRaresFiles(std::string path, bool resegment){
 		QStringList segoutput = QDir(sweep_folder.c_str()).entryList(QStringList("segoutput.txt"));
 
 		printf("segoutput %i\n",segoutput.size());
-		if(resegment || segoutput.size() == 0){
+        if(resegment || segoutput.size() == 0 || backwards){
 			std::ofstream myfile;
 			myfile.open (sweep_folder+"segoutput.txt");
-			myfile << "dummy";
+            myfile << "dummy";
 			myfile.close();
 
 			processSweep(sweep_xml,"");
@@ -1721,6 +1776,7 @@ int main(int argc, char** argv){
 		else if(std::string(argv[i]).compare("-add_to_soma") == 0){                  add_to_soma = true;}
 		else if(std::string(argv[i]).compare("-resend") == 0){						resend = true;}
         else if(std::string(argv[i]).compare("-backwards") == 0){	                backwards = true;}
+        else if(std::string(argv[i]).compare("-notSendPrev") == 0){	                send_previous = false;}
 		else if(inputstate == 0){
 			segsubs.push_back(n.subscribe(std::string(argv[i]), 1000, chatterCallback));
 		}else if(inputstate == 1){

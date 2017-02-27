@@ -1629,7 +1629,9 @@ reglib::Model * load_metaroom_model(std::string sweep_xml, std::string savePath)
 	return sweepmodel;
 }
 
-void segment(std::vector< reglib::Model * > bgs, std::vector< reglib::Model * > models, std::vector< std::vector< cv::Mat > > & internal, std::vector< std::vector< cv::Mat > > & external, std::vector< std::vector< cv::Mat > > & dynamic, int debugg, std::string savePath){
+void segment(std::vector< reglib::Model * > bgs, std::vector< reglib::Model * > models, std::vector< std::vector< cv::Mat > > & internal,
+			 std::vector< std::vector< cv::Mat > > & external, std::vector< std::vector< cv::Mat > > & dynamic, int debugg,
+			 std::string savePath, std::vector<Eigen::Matrix4d, Eigen::aligned_allocator<Eigen::Matrix4d> >* model_relative_poses){
 	double startTime = getTime();
 	printf("running segment method\n");
 	boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer;
@@ -1639,7 +1641,7 @@ void segment(std::vector< reglib::Model * > bgs, std::vector< reglib::Model * > 
 		viewer->setBackgroundColor(1.0,1.0,1.0);
 	}
 
-	reglib::MassRegistrationPPR2 * massregmod = new reglib::MassRegistrationPPR2(0.15);
+	reglib::MassRegistrationPPR2 * massregmod = new reglib::MassRegistrationPPR2(0.15); // why do you allocate __EVERYTHING__ on the heap?
 	if(savePath.size() != 0){
 		massregmod->savePath = savePath+"/segment_"+std::to_string(models.front()->id);
 	}
@@ -1658,6 +1660,7 @@ void segment(std::vector< reglib::Model * > bgs, std::vector< reglib::Model * > 
 	mu->viewer							= viewer;
 	printf("total segment part1 time: %5.5fs\n",getTime()-startTime);
 
+	// these are all the transforms in the coordinate system of the first frame in the previous sweep
 	std::vector<Eigen::Matrix4d> cpmod;
 	if(models.size() > 0 && bgs.size() > 0){
 		for(unsigned int i = 0; i < bgs.size(); i++){
@@ -1676,15 +1679,22 @@ void segment(std::vector< reglib::Model * > bgs, std::vector< reglib::Model * > 
 
 		for(unsigned int i = 0; i < bgs.size(); i++){cpmod[i] = mfrmod.poses[i];}
 
+		// for the change detection comparison without additional views, models only has 1 element (the current sweep)
 		for(unsigned int j = 0; j < models.size(); j++){
 			Eigen::Matrix4d change = mfrmod.poses[j+bgs.size()];
+            Eigen::Matrix4d bgchange = (mfrmod.poses[0]*bgs[0]->relativeposes[0]).inverse(); // assuming only 1 background
 			for(unsigned int k = 0; k < models[j]->relativeposes.size(); k++){
+                if (model_relative_poses != NULL) {
+                    //model_relative_poses->push_back(change*bgchange*models[j]->relativeposes[k]);
+                    model_relative_poses->push_back(bgchange*change*models[j]->relativeposes[k]);
+                }
 				models[j]->relativeposes[k] = change*models[j]->relativeposes[k];
 			}
 			for(unsigned int k = 0; k < models[j]->submodels_relativeposes.size(); k++){
 				models[j]->submodels_relativeposes[k] = change*models[j]->submodels_relativeposes[k];
 			}
 		}
+
 	}else if(models.size() > 1){
 		for(unsigned int j = 0; j < models.size(); j++){
 			if(models[j]->points.size() == 0){models[j]->recomputeModelPoints();}
@@ -1726,6 +1736,7 @@ void segment(std::vector< reglib::Model * > bgs, std::vector< reglib::Model * > 
 		for(unsigned int i = 0; i < model->frames.size(); i++){
 			reglib::RGBDFrame * frame = model->frames[i];
 			reglib::Camera * cam = frame->camera;
+            // is cv::Mat mask(cam->height,cam->width,CV_8UC1); mask.setTo(255); too simple? why, yes it is:
 			cv::Mat mask;
 			mask.create(cam->height,cam->width,CV_8UC1);
 			unsigned char * maskdata = (unsigned char *)(mask.data);
