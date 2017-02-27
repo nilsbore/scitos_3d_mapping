@@ -518,6 +518,8 @@ void saveRelativePoses(const std::string& sweep_folder, const std::string& previ
 		filename = sweep_folder + "relative_model_poses.xml";
 	}
 
+    SimpleXMLParser<pcl::PointXYZRGB>::RoomData data  = SimpleXMLParser<pcl::PointXYZRGB>::loadRoomFromXML(previous_sweep, std::vector<std::string>{"RoomIntermediateCloud"}, false, false);
+
 	QFile file(filename.c_str());
 	if (file.exists()) {
 		file.remove();
@@ -539,11 +541,15 @@ void saveRelativePoses(const std::string& sweep_folder, const std::string& previ
 
 		xmlWriter.writeStartElement("Poses");
 
+        Eigen::Affine3d e;
+        tf::transformTFToEigen(data.vIntermediateRoomCloudTransformsRegistered[0], e);
+
 		for (size_t i = 0; i < model_relative_poses.size(); ++i) {
+            Eigen::Matrix4d pose = e.matrix()*model_relative_poses[i];
 			QString PString;
 	        for (size_t y = 0; y < 4; ++y) {
 				for (size_t x = 0; x < 4; ++x) {
-		            PString += QString::number(model_relative_poses[i](y, x));
+                    PString += QString::number(pose(y, x));
 		            PString += ",";
 				}
 	        }
@@ -1057,6 +1063,10 @@ int processMetaroom(CloudPtr dyncloud, std::string path, bool store_old_xml = tr
 				}else{break;}
 			}
 		}
+
+        for (const Eigen::Matrix4d& p : model_relative_poses) {
+            std::cout << p << std::endl;
+        }
 	}else{
 		returnval = 1;
 	}
@@ -1702,7 +1712,7 @@ bool segmentRaresFiles(std::string path, bool resegment){
 		QStringList segoutput = QDir(sweep_folder.c_str()).entryList(QStringList("segoutput.txt"));
 
 		printf("segoutput %i\n",segoutput.size());
-        if(resegment || segoutput.size() == 0 || backwards){
+        if(resegment || segoutput.size() == 0){
 			std::ofstream myfile;
 			myfile.open (sweep_folder+"segoutput.txt");
             myfile << "dummy";

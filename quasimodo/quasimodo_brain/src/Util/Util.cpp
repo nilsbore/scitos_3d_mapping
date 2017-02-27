@@ -1682,12 +1682,13 @@ void segment(std::vector< reglib::Model * > bgs, std::vector< reglib::Model * > 
 		// for the change detection comparison without additional views, models only has 1 element (the current sweep)
 		for(unsigned int j = 0; j < models.size(); j++){
 			Eigen::Matrix4d change = mfrmod.poses[j+bgs.size()];
-            Eigen::Matrix4d bgchange = (mfrmod.poses[0]*bgs[0]->relativeposes[0]).inverse(); // assuming only 1 background
+            //Eigen::Matrix4d bgchange = mfrmod.poses[0]; // assuming only 1 background
+            //Eigen::Matrix4d rel_change = bgchange.colPivHouseholderQr().solve(change);
 			for(unsigned int k = 0; k < models[j]->relativeposes.size(); k++){
-                if (model_relative_poses != NULL) {
+                /*if (model_relative_poses != NULL) {
                     //model_relative_poses->push_back(change*bgchange*models[j]->relativeposes[k]);
-                    model_relative_poses->push_back(bgchange*change*models[j]->relativeposes[k]);
-                }
+                    model_relative_poses->push_back(rel_change*models[j]->relativeposes[k]);
+                }*/
 				models[j]->relativeposes[k] = change*models[j]->relativeposes[k];
 			}
 			for(unsigned int k = 0; k < models[j]->submodels_relativeposes.size(); k++){
@@ -1729,6 +1730,16 @@ void segment(std::vector< reglib::Model * > bgs, std::vector< reglib::Model * > 
 			bgmask.push_back(bgs[i]->modelmasks[k]->getMask());
 		}
 	}
+    if (model_relative_poses != NULL) {
+        //model_relative_poses->push_back(change*bgchange*models[j]->relativeposes[k]);
+        /*for(unsigned int k = 0; k < bgcp.size(); k++){
+            model_relative_poses->push_back(bgcp[k]);
+        }*/
+        reglib::Model * model = models[0]; // assuming only metarooms
+        for(unsigned int i = 0; i < model->relativeposes.size(); i++){
+            model_relative_poses->push_back(model->relativeposes[i]);
+        }
+    }
 	for(unsigned int j = 0; j < models.size(); j++){
 		reglib::Model * model = models[j];
 
