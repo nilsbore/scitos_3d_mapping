@@ -10,6 +10,7 @@
 #include "metaroom_xml_parser/simple_xml_parser.h"
 #include "metaroom_xml_parser/simple_summary_parser.h"
 #include <metaroom_xml_parser/load_utilities.h>
+//#include <semantic_map/semantic_map_summary_parser.h>
 
 #include <observation_registration_services/ObjectAdditionalViewRegistrationService.h>
 #include <observation_registration_services/AdditionalViewRegistrationService.h>
@@ -564,6 +565,39 @@ void saveRelativePoses(const std::string& sweep_folder, const std::string& previ
 	}
 }
 
+bool compare_nat(const std::string& a, const std::string& b)
+{
+    if (a.empty())
+        return true;
+    if (b.empty())
+        return false;
+    if (std::isdigit(a[0]) && !std::isdigit(b[0]))
+        return true;
+    if (!std::isdigit(a[0]) && std::isdigit(b[0]))
+        return false;
+    if (!std::isdigit(a[0]) && !std::isdigit(b[0]))
+    {
+        if (std::toupper(a[0]) == std::toupper(b[0]))
+            return compare_nat(a.substr(1), b.substr(1));
+        return (std::toupper(a[0]) < std::toupper(b[0]));
+    }
+
+    // Both strings begin with digit --> parse both numbers
+    std::istringstream issa(a);
+    std::istringstream issb(b);
+    int ia, ib;
+    issa >> ia;
+    issb >> ib;
+    if (ia != ib)
+        return ia < ib;
+
+    // Numbers are the same --> remove numbers and recurse
+    std::string anew, bnew;
+    std::getline(issa, anew);
+    std::getline(issb, bnew);
+    return (compare_nat(anew, bnew));
+}
+
 int processMetaroom(CloudPtr dyncloud, std::string path, bool store_old_xml = true){
 	path = quasimodo_brain::replaceAll(path, "//", "/");
 	quasimodo_brain::cleanPath(path);
@@ -608,7 +642,21 @@ int processMetaroom(CloudPtr dyncloud, std::string path, bool store_old_xml = tr
 	if(overall_folder.back() == '/'){overall_folder.pop_back();}
 
 	int prevind = -1;
-	std::vector<std::string> sweep_xmls = semantic_map_load_utilties::getSweepXmls<pcl::PointXYZRGB>(overall_folder);
+
+    std::vector<std::string> sweep_xmls = semantic_map_load_utilties::getSweepXmls<pcl::PointXYZRGB>(overall_folder);
+    std::sort(sweep_xmls.begin(), sweep_xmls.end(), compare_nat);
+    /*SemanticMapSummaryParser map_parser(overall_folder + "/index.xml");
+    vector<SemanticMapSummaryParser::EntityStruct> room_entities = map_parser.getRooms();
+    std::vector<std::string> sweep_xmls;
+    for (SemanticMapSummaryParser::EntityStruct& ent : room_entities) {
+        sweep_xmls.push_back(ent.roomXmlFile);
+        std::cout << ent.roomXmlFile << std::endl;
+    }*/
+    /*
+    for (unsigned int i = 0; i < sweep_xmls.size(); i++){
+        std::cout << sweep_xmls[i] << std::endl;
+    }
+    */
 	for (unsigned int i = 0; i < sweep_xmls.size(); i++){
 		sweep_xmls[i] = quasimodo_brain::replaceAll(sweep_xmls[i], "//", "/");
 		SimpleXMLParser<pcl::PointXYZRGB>::RoomData other_roomData  = parser.loadRoomFromXML(sweep_xmls[i],std::vector<std::string>(),false,false);
