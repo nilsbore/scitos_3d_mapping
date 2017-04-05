@@ -3634,6 +3634,11 @@ void ModelUpdater::computeMovingDynamicStatic(std::vector<cv::Mat> & movemask, s
 
 	printf("computeMovingDynamicStatic total time: %5.5fs\n",getTime()-computeMovingDynamicStatic_startTime);
 	if(debugg){
+
+		viewer->removeAllPointClouds();
+		viewer->addPointCloud<pcl::PointXYZRGBNormal> (cloud, pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGBNormal>(cloud), "cloud");
+		viewer->spin();
+
 		pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr cloud_sample (new pcl::PointCloud<pcl::PointXYZRGBNormal>);
 
 		for(unsigned int i = 0; i < current_point; i++){
@@ -3644,7 +3649,7 @@ void ModelUpdater::computeMovingDynamicStatic(std::vector<cv::Mat> & movemask, s
 
 		cloud_sample->points.clear();
 		for(unsigned int i = 0; i < current_point; i++){
-			if(rand() % 4 == 0){
+			if(rand() % 1 == 0){
 				cloud_sample->points.push_back(cloud->points[i]);
 			}
 		}
@@ -3654,24 +3659,24 @@ void ModelUpdater::computeMovingDynamicStatic(std::vector<cv::Mat> & movemask, s
 
 		cloud_sample->points.clear();
 		for(unsigned int i = 0; i < current_point; i++){
-			if(rand() % 4 == 0){
+			if(rand() % 1 == 0){
 
 				double p_fg = exp(-prior_weights[2*i+0]);
 
 				cloud_sample->points.push_back(cloud->points[i]);
-				cloud_sample->points.back().r = p_fg*255.0;//(priors[3*i+0]+priors[3*i+2])*255.0;
+				cloud_sample->points.back().r = (1-p_fg)*255.0;//(priors[3*i+0]+priors[3*i+2])*255.0;
 				cloud_sample->points.back().g = p_fg*255.0;
-				cloud_sample->points.back().b = p_fg*255.0;//;
+				cloud_sample->points.back().b = 0*255.0;//;
 			}
 		}
 		viewer->removeAllPointClouds();
 		viewer->addPointCloud<pcl::PointXYZRGBNormal> (cloud_sample, pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGBNormal>(cloud_sample), "cloud");
 		viewer->spin();
 
-
+for(int omg = 0; omg < 100; omg++){
 		cloud_sample->points.clear();
 		for(unsigned int i = 0; i < current_point; i++){
-			if(rand() % 4 == 0 && labels[i] == 0){
+			if(rand() % 1 == 0 && labels[i] == 0){
 				cloud_sample->points.push_back(cloud->points[i]);
 				cloud_sample->points.back().r = 0;
 				cloud_sample->points.back().g = 0;
@@ -3705,7 +3710,7 @@ void ModelUpdater::computeMovingDynamicStatic(std::vector<cv::Mat> & movemask, s
 		viewer->removeAllPointClouds();
 		viewer->addPointCloud<pcl::PointXYZRGBNormal> (cloud_sample, pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGBNormal>(cloud_sample), "cloud");
 		viewer->spin();
-
+}
 		cloud_sample->points.clear();
 		for(unsigned int i = 0; i < current_point; i++){
 			if(rand() % 1 == 0){
@@ -3716,6 +3721,7 @@ void ModelUpdater::computeMovingDynamicStatic(std::vector<cv::Mat> & movemask, s
 		viewer->addPointCloud<pcl::PointXYZRGBNormal> (cloud_sample, pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGBNormal>(cloud_sample), "cloud");
 		viewer->spin();
 	}
+
 
 	delete[] valids;
 	delete[] priors;
