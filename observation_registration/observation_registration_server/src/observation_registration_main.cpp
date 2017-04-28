@@ -32,7 +32,7 @@ bool observation_registration_service(
     // load observations
     SemanticRoomXMLParser<PointType> parser;
     auto source_observation = parser.loadRoomFromXML(req.source_observation_xml);
-    auto target_observation = parser.loadRoomFromXML(req.target_observation_xml);
+	auto target_observation = parser.loadRoomFromXML(req.target_observation_xml);
 
     // get observation data
     vector<boost::shared_ptr<pcl::PointCloud<PointType>>> source_observation_intermediate_clouds = source_observation.getIntermediateClouds();
@@ -52,20 +52,25 @@ bool observation_registration_service(
                                 "provided contain 0 intermediate clouds or 0 intermediate transforms. Cannot register.\n"));
         return true;
     }
-
+printf("%i\n",__LINE__);
     // registration data
     vector<boost::shared_ptr<pcl::PointCloud<PointType>>> all_clouds_source, all_clouds_target;
     vector<tf::StampedTransform> all_initial_poses_source, all_initial_poses_target;
     tf::StampedTransform origin_source, origin_target;
 
+	printf("%i\n",__LINE__);
     // find intermediate clouds to register
 //    SweepParameters registration_sweep_parameters(-160, 40, 160, -30, -30, -30);
+	source_observation.m_SweepParameters = SweepParameters (-160, 20, 160, -30, 30, -30);
+	target_observation.m_SweepParameters = SweepParameters (-160, 20, 160, -30, 30, -30);
     SweepParameters registration_sweep_parameters = source_observation.m_SweepParameters;
     SweepParameters source_observation_parameters = source_observation.m_SweepParameters;
     SweepParameters target_observation_parameters = target_observation.m_SweepParameters;
 
+	printf("%i -> %i\n",__LINE__,registration_sweep_parameters.getNumberOfIntermediatePositions());
 //    for (size_t i=0; i<source_observation_intermediate_clouds.size(); i++){
     for (size_t i=0; i<registration_sweep_parameters.getNumberOfIntermediatePositions(); i++){
+		printf("i = %i\n",i);
         int corresponding_source_index;
         registration_sweep_parameters.findCorrespondingPosition(source_observation_parameters,i,corresponding_source_index);
         int corresponding_target_index;
@@ -97,6 +102,7 @@ bool observation_registration_service(
         }
     }
 
+	printf("%i\n",__LINE__);
     // set observation origin
     if((source_observation_transforms_registered.size() == 0) || (target_observation_transforms_registered.size() == 0)){
         // at least one of the observations doesn't have registered transforms set -> the transform to the map frame is already contained in the intermediate transforms
@@ -119,6 +125,7 @@ bool observation_registration_service(
                                                          origin_source,
                                                          origin_target);
 
+	printf("%i\n",__LINE__);
     if (number_of_constraints.size()){
         int total_constraints = 0;
         std::for_each(number_of_constraints.begin(), number_of_constraints.end(), [&] (int n) {
