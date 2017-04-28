@@ -267,15 +267,10 @@ void CameraOptimizer::normalize(){}
 
 double CameraOptimizer::getRange(double w, double h, double z, bool debugg){return z;}
 
-void CameraOptimizer::addTrainingData( reglib::RGBDFrame * src, reglib::RGBDFrame * dst, Eigen::Matrix4d p){
-    double start1 = reglib::getTime();
-    cv::Mat src_reliability = getPixelReliability(src);
+void CameraOptimizer::addTrainingData( reglib::RGBDFrame * src, reglib::RGBDFrame * dst, Eigen::Matrix4d p, cv::Mat src_reliability, cv::Mat dst_reliability){
     float *  src_rel = (float*)src_reliability.data;
-    cv::Mat dst_reliability = getPixelReliability(dst);
     float *  dst_rel = (float*)dst_reliability.data;
-    double stop1 = reglib::getTime();
 
-    double start2 = reglib::getTime();
 
     float m00 = p(0,0); float m01 = p(0,1); float m02 = p(0,2); float m03 = p(0,3);
     float m10 = p(1,0); float m11 = p(1,1); float m12 = p(1,2); float m13 = p(1,3);
@@ -306,6 +301,65 @@ void CameraOptimizer::addTrainingData( reglib::RGBDFrame * src, reglib::RGBDFram
     const float src_cy				= src_camera->cy;
     const float src_ifx				= 1.0/src_camera->fx;
     const float src_ify				= 1.0/src_camera->fy;
+
+    double totw = 0;
+    double tot = 0;
+    for(unsigned long src_h = 0; src_h < src_height;src_h += 10){
+        for(unsigned long src_w = 0; src_w < src_width;src_w += 10){
+            unsigned int src_ind = src_h * src_width + src_w;
+            double sr = src_rel[src_ind];
+
+            if(sr == 0){continue;}
+
+            float z = getRange(src_w/float(src_width),src_h/float(src_height),src_idepth*float(src_depthdata[src_ind]));//src_idepth*float(src_depthdata[src_ind]);//getRange(src_w/float(src_width),src_h/float(src_height),src_idepth*float(src_depthdata[src_ind]));
+
+            if(z > 0){
+
+                tot++;
+
+                float x     = (float(src_w) - src_cx) * z * src_ifx;
+                float y     = (float(src_h) - src_cy) * z * src_ify;
+
+                float src_tx	= m00*x + m01*y + m02*z + m03;
+                float src_ty	= m10*x + m11*y + m12*z + m13;
+                float src_tz	= m20*x + m21*y + m22*z + m23;
+
+                float itz	= 1.0/src_tz;
+                float dst_w	= dst_fx*src_tx*itz + dst_cx;
+                float dst_h	= dst_fy*src_ty*itz + dst_cy;
+
+                if((dst_w > 0) && (dst_h > 0) && (dst_w < dst_width2) && (dst_h < dst_height2)){
+                    unsigned int dst_ind = unsigned(dst_h+0.5) * dst_width + unsigned(dst_w+0.5);
+                    double dr = dst_rel[dst_ind];
+                    if(dr == 0){continue;}
+
+                    float dst_z = dst_idepth*float(dst_depthdata[dst_ind]);
+                    if(dst_z > 0){
+                        double src_cov = z*z*z*z;
+                        //							double src_info = 1.0 / src_info;
+                        double dst_cov = dst_z*dst_z*dst_z*dst_z;
+                        //							double dst_info = 1.0 /dst_cov;
+                        double total_cov = src_cov + dst_cov;
+                        //							double total_std = sqrt(total_cov);
+                        //							double scale = 1.0/total_std;
+                        double dz = dst_z-src_tz;
+
+                        double scaled_rz = dz*dz/(0.01*0.01*total_cov);
+
+                        double contribution_weight = dst_cov/(src_cov+dst_cov);
+                        double reliability_weight = dr*sr;
+                        double overlap_prob = fabs(scaled_rz) < 1.0;//exp(-0.5*scaled_rz*scaled_rz);
+                        double total_weight = overlap_prob*reliability_weight*contribution_weight;
+
+                        totw += overlap_prob;
+                    }
+                }
+            }
+        }
+    }
+
+    if(totw/tot < 0.01){return;}
+
 
     for(unsigned long src_h = 0; src_h < src_height;src_h ++){
         for(unsigned long src_w = 0; src_w < src_width;src_w ++){
@@ -363,6 +417,12 @@ void CameraOptimizer::addTrainingData( reglib::RGBDFrame * src, reglib::RGBDFram
 
     double stop2 = reglib::getTime();
     //printf("time: %5.5fs %5.5fs\n",stop1-start1,stop2-start2);
+}
+
+void CameraOptimizer::addTrainingData( reglib::RGBDFrame * src, reglib::RGBDFrame * dst, Eigen::Matrix4d p){
+    cv::Mat src_reliability = getPixelReliability(src);
+    cv::Mat dst_reliability = getPixelReliability(dst);
+    addTrainingData(src,dst,p,src_reliability,dst_reliability);
 }
 
 void CameraOptimizer::print(){}

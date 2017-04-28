@@ -130,9 +130,6 @@ int main(int argc, char** argv){
     for (auto it=waypoint_to_sweepxml_map.begin(); it != waypoint_to_sweepxml_map.end(); ++it){
         std::sort(it->second.begin(), it->second.end()); // simple sort
         cout<<it->first<<" ---> observations: "<<it->second.size()<<endl;
-        if (it->first!="WayPoint16"){
-            continue;
-        }
         for (int i=1; i<it->second.size(); ++i){
             process_waypoint_sweeps(it->second[i-1], it->second[i], registration_client, pg);
         }

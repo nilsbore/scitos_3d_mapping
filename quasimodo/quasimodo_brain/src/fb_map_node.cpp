@@ -33,6 +33,7 @@ using namespace std;
 int counter = 0;
 
 std::string scriptPath = "test.txt";
+std::string savePath = "testsave";
 
 reglib::Camera *						camera;
 std::vector<reglib::RGBDFrame *>		frames;
@@ -297,6 +298,8 @@ std::vector<Eigen::Matrix4d> slam_vo3(reglib::DistanceWeightFunction2 * func, re
     pcl::PointCloud<pcl::PointXYZ>::Ptr    coordcloud	(new pcl::PointCloud<pcl::PointXYZ>);
     pcl::PointCloud<pcl::PointXYZ>::Ptr    gt_coordcloud	(new pcl::PointCloud<pcl::PointXYZ>);
 
+    int v1(0);
+    int v2(0);
     if(visualize){
         viewer = boost::shared_ptr<pcl::visualization::PCLVisualizer>(new pcl::visualization::PCLVisualizer ("viewer"));
         viewer->setBackgroundColor(1.0,1.0,1.0);
@@ -315,9 +318,16 @@ std::vector<Eigen::Matrix4d> slam_vo3(reglib::DistanceWeightFunction2 * func, re
             if(i > 0){
                 pcl::PointXYZ p; p.x = gt_poses[i-1](0,3);p.y = gt_poses[i-1](1,3); p.z = gt_poses[i-1](2,3);
                 gt_coordcloud->points.push_back(p);
-                sprintf(buf,"gt_%i",i);viewer->addLine<pcl::PointXYZ> (cloudCoord->points[0],p,0,0,255,buf);
+                //sprintf(buf,"gt_%i",i);viewer->addLine<pcl::PointXYZ> (cloudCoord->points[0],p,0,0,255,buf);
             }
         }
+
+//        viewer->createViewPort(0.0, 0.0, 0.5, 1.0, v1);
+//        viewer->createViewPort(0.5, 0.0, 1.0, 1.0, v2);
+//        viewer->setBackgroundColor(1.0,1.0,1.0,0);
+//        viewer->setBackgroundColor(1.0,1.0,1.0,1);
+//        viewer->setBackgroundColor(1.0,1.0,1.0,2);
+
         viewer->spinOnce();
     }
 
@@ -350,6 +360,7 @@ std::vector<Eigen::Matrix4d> slam_vo3(reglib::DistanceWeightFunction2 * func, re
     massreg->convergence_mul        = 1.0;
     massreg->func_setup             = 0;
     massreg->tune_regularizer       = true;
+    massreg->savePath               = "./regSavePath";
     //massreg->next_regularizer = 0.1;
 
     //register to last kf
@@ -357,7 +368,7 @@ std::vector<Eigen::Matrix4d> slam_vo3(reglib::DistanceWeightFunction2 * func, re
     cp.push_back(Eigen::Matrix4d::Identity());
     cp.push_back(Eigen::Matrix4d::Identity());
 
-    int kfstep = 10;
+    int kfstep = 1;
 
     double max_error = 0;
     int max_ind = 0;
@@ -370,6 +381,8 @@ std::vector<Eigen::Matrix4d> slam_vo3(reglib::DistanceWeightFunction2 * func, re
         reglib::RGBDFrame * frame = new reglib::RGBDFrame(camera,cv::imread(rgb_images_path[i], CV_LOAD_IMAGE_COLOR), co->improveDepth(cv::imread(depth_images_path[i], CV_LOAD_IMAGE_UNCHANGED),camera->idepth_scale),timestamps[i], Eigen::Matrix4d::Identity(),true,"", false);
         current->frames[0] = frame;
         current->recomputeModelPoints();
+
+        //if(i == 250){massreg->visualizationLvl = 2;}
 
         bool is_kf = i % kfstep == 0;
 
@@ -418,8 +431,8 @@ std::vector<Eigen::Matrix4d> slam_vo3(reglib::DistanceWeightFunction2 * func, re
             char buf [1024];
             pcl::PointXYZ currp; currp.x = currPose(0,3);currp.y = currPose(1,3); currp.z = currPose(2,3);
             pcl::PointXYZ gtp; gtp.x = gtcurrPose(0,3);gtp.y = gtcurrPose(1,3); gtp.z = gtcurrPose(2,3);
-            sprintf(buf,"link_%i",i);viewer->addLine<pcl::PointXYZ> (gtp,currp,255,0,255,buf);
-            viewer->spinOnce();
+            //sprintf(buf,"link_%i",i);viewer->addLine<pcl::PointXYZ> (gtp,currp,255,0,255,buf);
+            //viewer->spinOnce();
         }
 
         if(!first && visualize){
@@ -427,7 +440,7 @@ std::vector<Eigen::Matrix4d> slam_vo3(reglib::DistanceWeightFunction2 * func, re
             char buf [1024];
             pcl::transformPointCloud (*coordcloud, *cloudCoord, Eigen::Affine3f(poses.back().cast<float>()));
             pcl::PointXYZ p; p.x = poses[i-1](0,3);p.y = poses[i-1](1,3); p.z = poses[i-1](2,3);
-            sprintf(buf,"prev_%i",i);viewer->addLine<pcl::PointXYZ> (cloudCoord->points[0],p,0,255,0,buf);
+            //sprintf(buf,"prev_%i",i);viewer->addLine<pcl::PointXYZ> (cloudCoord->points[0],p,255,0,0,buf);
             viewer->spinOnce();
         }
 
@@ -437,7 +450,7 @@ std::vector<Eigen::Matrix4d> slam_vo3(reglib::DistanceWeightFunction2 * func, re
             reglib::RGBDFrame * kf_frame = new reglib::RGBDFrame(camera,cv::imread(rgb_images_path[i], CV_LOAD_IMAGE_COLOR),cv::imread(depth_images_path[i], CV_LOAD_IMAGE_UNCHANGED),timestamps[i], Eigen::Matrix4d::Identity(),true,"", true);
 
             last_kf_nr = i;
-            kf->points.clear();
+            //kf->points.clear();
             kf->addSuperPoints( kf->points,poses.back(),frame,kf->modelmasks.back());
 
             if(!first){massreg->removeLastNode();}
@@ -471,11 +484,47 @@ std::vector<Eigen::Matrix4d> slam_vo3(reglib::DistanceWeightFunction2 * func, re
             if(visualize){
                 viewer->removeAllPointClouds();
                 pcl::PointCloud<pcl::PointXYZRGB>::Ptr cld = kf->getPCLcloud(1,3);
-                pcl::PointCloud<pcl::PointXYZRGB>::Ptr edge_cld = kf->getPCLEdgeCloud(1,0);
-                viewer->addPointCloud<pcl::PointXYZRGB> (cld, pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB>(cld), "cloud");
-                viewer->addPointCloud<pcl::PointXYZRGB> (edge_cld, pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB>(edge_cld), "edge_cloud");
-                viewer->addCoordinateSystem(0.1,Eigen::Affine3f(poses.back().cast<float>()));
+                pcl::PointCloud<pcl::PointXYZRGB>::Ptr cld_rgb = kf->getPCLcloud(1,1);
+                pcl::PointCloud<pcl::PointXYZRGB>::Ptr current_green = current->getPCLcloud(1,1);
+
+                pcl::PointCloud<pcl::PointXYZRGB>::Ptr    current	(new pcl::PointCloud<pcl::PointXYZRGB>);
+                pcl::transformPointCloud (*current_green, *current, poses.back().cast<float>());
+
+                viewer->addPointCloud<pcl::PointXYZRGB> (cld, pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB>(cld), "cloud",v1);
+                //viewer->addPointCloud<pcl::PointXYZRGB> (cld_rgb, pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB>(cld_rgb), "cloud_rgb",v2);
+                viewer->addPointCloud<pcl::PointXYZRGB> (current, pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB>(current), "current",v2);
+
+                if(i == 0){
+                    viewer->spin();
+                }
                 viewer->spinOnce();
+                viewer->spinOnce();
+                viewer->spinOnce();
+                viewer->spinOnce();
+                viewer->spinOnce();
+                viewer->spinOnce();
+                viewer->spinOnce();
+                viewer->spinOnce();
+                viewer->spinOnce();
+                viewer->spinOnce();
+                viewer->spinOnce();
+                viewer->spinOnce();
+                viewer->spinOnce();
+                viewer->spinOnce();
+                viewer->spinOnce();
+                viewer->spinOnce();
+                viewer->spinOnce();
+                viewer->spinOnce();
+
+                char buf [1024];
+                sprintf(buf,"%s/map4_%4.4i.png",savePath.c_str(),i);
+                std::string filename = std::string(buf);
+                //std::string filename = savePath+"/map3_"+std::to_string(i)+".png";
+                printf("saving: %s\n",filename.c_str());
+                viewer->saveScreenshot(filename);
+//                if(i > 230 && i % 10 == 0){
+//                    viewer->spin();
+//                }
             }
         }
 
@@ -561,10 +610,10 @@ int main(int argc, char **argv){
 
 
         for(unsigned int j = 0; j < des.size(); j++){
-//            camera->fx = 525;//541;
-//            camera->cx = 319.5;//291;
-//            camera->fy = 525;//513;
-//            camera->cy = 239.5;//255;
+//            camera->fx = 541;//525;//541;
+//            camera->cx = 291;//319.5;//291;
+//            camera->fy = 513;//525;//513;
+//            camera->cy = 255;//239.5;//255;
             //double fx_start = camera->fx-5;
             //double fx_stop = camera->fx+5;
             //std::string name = funcs[funcnr]->name;

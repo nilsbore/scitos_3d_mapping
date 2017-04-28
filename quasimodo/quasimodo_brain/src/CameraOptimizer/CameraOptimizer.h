@@ -33,6 +33,7 @@ public:
     virtual double getRange(double w, double h, double z, bool debugg = false);
 
     virtual void addTrainingData( reglib::RGBDFrame * src, reglib::RGBDFrame * dst, Eigen::Matrix4d p);
+    virtual void addTrainingData( reglib::RGBDFrame * src, reglib::RGBDFrame * dst, Eigen::Matrix4d p, cv::Mat src_reliability, cv::Mat dst_reliability);
     virtual void print();
     virtual void shrink();
     virtual double getMax();

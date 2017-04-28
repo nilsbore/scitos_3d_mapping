@@ -27,6 +27,7 @@ using namespace std;
 
 int counter = 0;
 
+std::string savePath = "";
 std::string scriptPath = "test.txt";
 
 reglib::Camera *						camera;

@@ -224,13 +224,13 @@ reglib::Model * getAVMetaroom(std::string path, bool compute_edges = true, std::
 	unsigned char * maskdata = (unsigned char *)fullmask.data;
 	for(int j = 0; j < 480*640; j++){maskdata[j] = 255;}
 
-    size_t max_nr_frames = roomData.vIntermediateRoomClouds.size();
+	size_t max_nr_frames = roomData.vIntermediateRoomClouds.size();
     if(sweepPoses.size() != 0){
         max_nr_frames = std::min(max_nr_frames,sweepPoses.size());
     }
 
 	std::vector<reglib::RGBDFrame * > metaroom_frames;
-    for (size_t i=0; i < max_nr_frames; i++){
+	for (size_t i=0; i < max_nr_frames && i < 17; i++){
 		printf("loading intermedite %i\n",i);
 		if(i >= counter){
 			image_geometry::PinholeCameraModel aCameraModel = roomData.vIntermediateRoomCloudCamParamsCorrected[i];
@@ -595,6 +595,14 @@ int processMetaroom(CloudPtr dyncloud, std::string path, bool store_old_xml = tr
 		return 0;
 	}
 
+
+	if(fr.size() > 50){
+		printf("too many frames in model, returning\n");
+		fullmodel->fullDelete();
+		delete fullmodel;
+		return 0;
+	}
+
 	DynamicObjectXMLParser objectparser(sweep_folder, true);
 
 	std::string current_waypointid = current_roomData.roomWaypointId;
@@ -609,6 +617,7 @@ int processMetaroom(CloudPtr dyncloud, std::string path, bool store_old_xml = tr
 		std::string other_waypointid = other_roomData.roomWaypointId;
 
 		if(sweep_xmls[i].compare(path) == 0){break;}
+		if(other_roomData.roomLogStartTime == current_roomData.roomLogStartTime){continue;}
 		if(other_waypointid.compare(current_waypointid) == 0){prevind = i;}
 	}
 
@@ -1646,6 +1655,9 @@ void add_soma_id_callback(const std_msgs::String::ConstPtr& msg){
 
 bool segmentRaresFiles(std::string path, bool resegment){
 	vector<string> sweep_xmls = semantic_map_load_utilties::getSweepXmls<PointType>(path);
+    printf("segmentRaresFiles: %s\n",path.c_str());
+    printf("sweep_xmls: %i\n",sweep_xmls.size());
+
 	for (auto sweep_xml : sweep_xmls) {
 		printf("sweep_xml: %s\n",sweep_xml.c_str());
 

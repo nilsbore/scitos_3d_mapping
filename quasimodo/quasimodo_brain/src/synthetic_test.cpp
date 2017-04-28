@@ -302,7 +302,7 @@ Matrix3Xd align (Matrix3Xd A, Matrix3Xd B, VectorXd W, double power = 2){
 
 std::vector<double> W_prev;
 
-Matrix3Xd refine (double & match_acc, Matrix3Xd A, Matrix3Xd B, reglib::DistanceWeightFunction2 * func, int index = -1, int nr_correct_matches = 1000, double maxtime = 20.0){
+Matrix3Xd refine (double & match_acc, Matrix3Xd A, Matrix3Xd B, reglib::DistanceWeightFunction2 * func, int index = -1, int nr_correct_matches = 1000, double maxtime = 40.0){
 	double stop = 0;
 
 	double startTime = reglib::getTime();
@@ -834,8 +834,8 @@ int main(int argc, char **argv){
         funcs.push_back(tfunc);
     }
 
-    test("verylow_power2", 100, 1000, 100  , noise,power,translation_transformations,angle_transformations,funcs);
-    test("low_power2",     100, 1000, 1000 , noise,power,translation_transformations,angle_transformations,funcs);
+    //test("verylow_power2", 100, 1000, 100  , noise,power,translation_transformations,angle_transformations,funcs);
+    //test("low_power2",     100, 1000, 1000 , noise,power,translation_transformations,angle_transformations,funcs);
     test("high_power2",    100, 1000, 10000, noise,power,translation_transformations,angle_transformations,funcs);
 	exit(0);
 }

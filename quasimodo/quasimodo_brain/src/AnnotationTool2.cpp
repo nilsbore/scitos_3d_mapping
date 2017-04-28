@@ -1,445 +1,6 @@
-/*
-#include "ros/ros.h"
-#include "std_msgs/String.h"
-#include <sensor_msgs/PointCloud2.h>
-#include <string.h>
-
-#include <cv_bridge/cv_bridge.h>
-#include <sensor_msgs/image_encodings.h>
-
-#include "eigen_conversions/eigen_msg.h"
-#include "tf_conversions/tf_eigen.h"
-
-#include "metaroom_xml_parser/simple_xml_parser.h"
-#include "metaroom_xml_parser/simple_summary_parser.h"
-
-#include <tf_conversions/tf_eigen.h>
-
-#include "ros/ros.h"
-#include <metaroom_xml_parser/load_utilities.h>
-#include <pcl_ros/point_cloud.h>
-#include <cv_bridge/cv_bridge.h>
-
-#include "metaroom_xml_parser/load_utilities.h"
-#include <pcl/visualization/pcl_visualizer.h>
-#include <pcl_ros/transforms.h>
-
-#include <tf_conversions/tf_eigen.h>
-
-#include "quasimodo_msgs/model.h"
-#include "quasimodo_msgs/rgbd_frame.h"
-#include "quasimodo_msgs/model_from_frame.h"
-#include "quasimodo_msgs/index_frame.h"
-#include "quasimodo_msgs/fuse_models.h"
-#include "quasimodo_msgs/get_model.h"
-#include "quasimodo_msgs/segment_model.h"
-#include "quasimodo_msgs/metaroom_pair.h"
-
-#include "ros/ros.h"
-#include <quasimodo_msgs/query_cloud.h>
-#include <quasimodo_msgs/visualize_query.h>
-#include <metaroom_xml_parser/load_utilities.h>
-#include <pcl_ros/point_cloud.h>
-#include <cv_bridge/cv_bridge.h>
-
-#include "metaroom_xml_parser/load_utilities.h"
-#include <pcl/visualization/pcl_visualizer.h>
-#include <pcl_ros/transforms.h>
-
-#include "quasimodo_msgs/model.h"
-#include "quasimodo_msgs/rgbd_frame.h"
-#include "quasimodo_msgs/model_from_frame.h"
-#include "quasimodo_msgs/index_frame.h"
-#include "quasimodo_msgs/fuse_models.h"
-#include "quasimodo_msgs/get_model.h"
-
-#include "metaroom_xml_parser/simple_xml_parser.h"
-#include "metaroom_xml_parser/load_utilities.h"
-
-#include <image_geometry/pinhole_camera_model.h>
-#include <sensor_msgs/CameraInfo.h>
-
-#include "modelupdater/ModelUpdater.h"
-#include "core/RGBDFrame.h"
 #include "Util/Util.h"
 
-// Services
-#include <object_manager_msgs/DynamicObjectsService.h>
-#include <object_manager_msgs/GetDynamicObjectService.h>
-#include <object_manager_msgs/ProcessDynamicObjectService.h>
-
-// Registration service
-#include <observation_registration_services/ObjectAdditionalViewRegistrationService.h>
-
-// Additional view mask service
-#include <object_manager_msgs/DynamicObjectComputeMaskService.h>
-
-
-#include <sys/time.h>
-#include <sys/resource.h>
-
-// Custom messages
-#include "object_manager/dynamic_object.h"
-#include "object_manager/dynamic_object_xml_parser.h"
-#include "object_manager/dynamic_object_utilities.h"
-#include "object_manager/dynamic_object_mongodb_interface.h"
-
-#include <object_manager_msgs/DynamicObjectTracks.h>
-#include <object_manager_msgs/DynamicObjectTrackingData.h>
-
-
-#include <semantic_map_msgs/RoomObservation.h>
-
-#include <iostream>
-#include <fstream>
-
-
-std::vector< ros::ServiceServer > m_DynamicObjectsServiceServers;
-std::vector< ros::ServiceServer > m_GetDynamicObjectServiceServers;
-
-typedef typename object_manager_msgs::DynamicObjectsService::Request DynamicObjectsServiceRequest;
-typedef typename object_manager_msgs::DynamicObjectsService::Response DynamicObjectsServiceResponse;
-
-typedef typename object_manager_msgs::GetDynamicObjectService::Request GetDynamicObjectServiceRequest;
-typedef typename object_manager_msgs::GetDynamicObjectService::Response GetDynamicObjectServiceResponse;
-
-typedef typename object_manager_msgs::ProcessDynamicObjectService::Request ProcessDynamicObjectServiceRequest;
-typedef typename object_manager_msgs::ProcessDynamicObjectService::Response ProcessDynamicObjectServiceResponse;
-
-ros::ServiceClient segmentation_client;
-using namespace std;
-using namespace semantic_map_load_utilties;
-
-
-typedef pcl::PointCloud<PointType> Cloud;
-typedef typename Cloud::Ptr CloudPtr;
-typedef pcl::search::KdTree<PointType> Tree;
-typedef semantic_map_load_utilties::DynamicObjectData<PointType> ObjectData;
-
-using namespace std;
-using namespace semantic_map_load_utilties;
-
-boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer;
-int visualization_lvl		= 0;
-
-Eigen::Matrix4d getPose(QXmlStreamReader * xmlReader){
-	QXmlStreamReader::TokenType token = xmlReader->readNext();//Translation
-	QString elementName = xmlReader->name().toString();
-
-	token = xmlReader->readNext();//fx
-	double tx = atof(xmlReader->readElementText().toStdString().c_str());
-
-	token = xmlReader->readNext();//fy
-	double ty = atof(xmlReader->readElementText().toStdString().c_str());
-
-	token = xmlReader->readNext();//cx
-	double tz = atof(xmlReader->readElementText().toStdString().c_str());
-
-	token = xmlReader->readNext();//Translation
-	elementName = xmlReader->name().toString();
-
-	token = xmlReader->readNext();//Rotation
-	elementName = xmlReader->name().toString();
-
-	token = xmlReader->readNext();//qw
-	double qw = atof(xmlReader->readElementText().toStdString().c_str());
-
-	token = xmlReader->readNext();//qx
-	double qx = atof(xmlReader->readElementText().toStdString().c_str());
-
-	token = xmlReader->readNext();//qy
-	double qy = atof(xmlReader->readElementText().toStdString().c_str());
-
-	token = xmlReader->readNext();//qz
-	double qz = atof(xmlReader->readElementText().toStdString().c_str());
-
-	token = xmlReader->readNext();//Rotation
-	elementName = xmlReader->name().toString();
-
-	Eigen::Matrix4d regpose = (Eigen::Affine3d(Eigen::Quaterniond(qw,qx,qy,qz))).matrix();
-	regpose(0,3) = tx;
-	regpose(1,3) = ty;
-	regpose(2,3) = tz;
-
-	return regpose;
-}
-
-void readViewXML(std::string xmlFile, std::vector<reglib::RGBDFrame *> & frames, std::vector<Eigen::Matrix4d> & poses){
-	QFile file(xmlFile.c_str());
-
-	if (!file.exists())
-	{
-		ROS_ERROR("Could not open file %s to load room.",xmlFile.c_str());
-		return;
-	}
-
-	QString xmlFileQS(xmlFile.c_str());
-	int index = xmlFileQS.lastIndexOf('/');
-	std::string roomFolder = xmlFileQS.left(index).toStdString();
-
-
-	file.open(QIODevice::ReadOnly);
-	ROS_INFO_STREAM("Parsing xml file: "<<xmlFile.c_str());
-
-	QXmlStreamReader* xmlReader = new QXmlStreamReader(&file);
-
-
-	while (!xmlReader->atEnd() && !xmlReader->hasError())
-	{
-		QXmlStreamReader::TokenType token = xmlReader->readNext();
-		if (token == QXmlStreamReader::StartDocument)
-			continue;
-
-		if (xmlReader->hasError())
-		{
-			ROS_ERROR("XML error: %s in %s",xmlReader->errorString().toStdString().c_str(),xmlFile.c_str());
-			return;
-		}
-
-		QString elementName = xmlReader->name().toString();
-
-		if (token == QXmlStreamReader::StartElement)
-		{
-
-			if (xmlReader->name() == "View")
-			{
-				cv::Mat rgb;
-				cv::Mat depth;
-				//printf("elementName: %s\n",elementName.toStdString().c_str());
-				QXmlStreamAttributes attributes = xmlReader->attributes();
-				if (attributes.hasAttribute("RGB"))
-				{
-					std::string imgpath = attributes.value("RGB").toString().toStdString();
-					printf("rgb filename: %s\n",(roomFolder+"/"+imgpath).c_str());
-					rgb = cv::imread(roomFolder+"/"+imgpath, CV_LOAD_IMAGE_UNCHANGED);
-
-					//QString rgbpath = attributes.value("RGB").toString();
-					//rgb = cv::imread(roomFolder+"/"+(rgbpath.toStdString().c_str()), CV_LOAD_IMAGE_UNCHANGED);
-					//rgb = cv::imread((rgbpath.toStdString()).c_str(), CV_LOAD_IMAGE_UNCHANGED);
-				}else{break;}
-
-
-				if (attributes.hasAttribute("DEPTH"))
-				{
-					std::string imgpath = attributes.value("DEPTH").toString().toStdString();
-					printf("depth filename: %s\n",(roomFolder+"/"+imgpath).c_str());
-					depth = cv::imread(roomFolder+"/"+imgpath, CV_LOAD_IMAGE_UNCHANGED);
-					//QString depthpath = attributes.value("DEPTH").toString();
-					//printf("depth filename: %s\n",depthpath.toStdString().c_str());
-					//depth = cv::imread((roomFolder+"/"+depthpath.toStdString()).c_str(), CV_LOAD_IMAGE_UNCHANGED);
-					//depth = cv::imread(roomFolder+"/"+(depthpath.toStdString().c_str()), CV_LOAD_IMAGE_UNCHANGED);
-				}else{break;}
-
-
-				token = xmlReader->readNext();//Stamp
-				elementName = xmlReader->name().toString();
-
-				token = xmlReader->readNext();//sec
-				elementName = xmlReader->name().toString();
-				int sec = atoi(xmlReader->readElementText().toStdString().c_str());
-
-				token = xmlReader->readNext();//nsec
-				elementName = xmlReader->name().toString();
-				int nsec = atoi(xmlReader->readElementText().toStdString().c_str());
-				token = xmlReader->readNext();//end stamp
-
-				token = xmlReader->readNext();//Camera
-				elementName = xmlReader->name().toString();
-
-				reglib::Camera * cam = new reglib::Camera();
-
-				token = xmlReader->readNext();//fx
-				cam->fx = atof(xmlReader->readElementText().toStdString().c_str());
-
-				token = xmlReader->readNext();//fy
-				cam->fy = atof(xmlReader->readElementText().toStdString().c_str());
-
-				token = xmlReader->readNext();//cx
-				cam->cx = atof(xmlReader->readElementText().toStdString().c_str());
-
-				token = xmlReader->readNext();//cy
-				cam->cy = atof(xmlReader->readElementText().toStdString().c_str());
-
-				token = xmlReader->readNext();//Camera
-				elementName = xmlReader->name().toString();
-
-				double time = double(sec)+double(nsec)/double(1e9);
-
-				token = xmlReader->readNext();//RegisteredPose
-				elementName = xmlReader->name().toString();
-
-				Eigen::Matrix4d regpose = getPose(xmlReader);
-
-				token = xmlReader->readNext();//RegisteredPose
-				elementName = xmlReader->name().toString();
-
-
-				token = xmlReader->readNext();//Pose
-				elementName = xmlReader->name().toString();
-
-				Eigen::Matrix4d pose = getPose(xmlReader);
-
-				token = xmlReader->readNext();//Pose
-				elementName = xmlReader->name().toString();
-
-				reglib::RGBDFrame * frame = new reglib::RGBDFrame(cam,rgb,depth, time, pose);
-				frames.push_back(frame);
-				poses.push_back(pose);
-			}
-		}
-	}
-	delete xmlReader;
-}
-
-std::vector<Eigen::Matrix4d> readPoseXML(std::string xmlFile){
-	std::vector<Eigen::Matrix4d> poses;
-	QFile file(xmlFile.c_str());
-
-	if (!file.exists()){
-		ROS_ERROR("Could not open file %s to load poses.",xmlFile.c_str());
-		return poses;
-	}
-
-	file.open(QIODevice::ReadOnly);
-	ROS_INFO_STREAM("Parsing xml file: "<<xmlFile.c_str());
-
-	QXmlStreamReader* xmlReader = new QXmlStreamReader(&file);
-
-	while (!xmlReader->atEnd() && !xmlReader->hasError()){
-		QXmlStreamReader::TokenType token = xmlReader->readNext();
-		if (token == QXmlStreamReader::StartDocument)
-			continue;
-
-		if (xmlReader->hasError())
-		{
-			ROS_ERROR("XML error: %s in %s",xmlReader->errorString().toStdString().c_str(),xmlFile.c_str());
-			return poses;
-		}
-
-		QString elementName = xmlReader->name().toString();
-
-		if (token == QXmlStreamReader::StartElement){
-			if (xmlReader->name() == "Pose"){
-				Eigen::Matrix4d pose = getPose(xmlReader);
-
-				token = xmlReader->readNext();//Pose
-				elementName = xmlReader->name().toString();
-
-				std::cout << pose << std::endl << std::endl;
-				poses.push_back(pose);
-			}
-		}
-	}
-	delete xmlReader;
-	printf("done readPoseXML\n");
-	return poses;
-}
-
-std::vector<reglib::Model *> loadModels(std::string path){
-	printf("loadModels: %s\n",path.c_str());
-	std::vector<reglib::Model *> models;
-	int slash_pos = path.find_last_of("/");
-	std::string sweep_folder = path.substr(0, slash_pos) + "/";
-
-	QStringList objectFiles = QDir(sweep_folder.c_str()).entryList(QStringList("dynamic_obj*.xml"));
-	if(objectFiles.size() == 0){return models;}
-
-	std::vector<reglib::RGBDFrame *> frames;
-	std::vector<Eigen::Matrix4d> poses;
-	readViewXML(sweep_folder+"ViewGroup.xml",frames,poses);
-
-
-	for (auto objectFile : objectFiles){
-		std::string object = sweep_folder+objectFile.toStdString();
-		printf("object: %s\n",object.c_str());
-
-		QFile file(object.c_str());
-
-		if (!file.exists()){
-			ROS_ERROR("Could not open file %s to masks.",object.c_str());
-			continue;
-		}
-
-		file.open(QIODevice::ReadOnly);
-		ROS_INFO_STREAM("Parsing xml file: "<<object.c_str());
-
-		reglib::Model * mod = new reglib::Model();
-		QXmlStreamReader* xmlReader = new QXmlStreamReader(&file);
-
-		while (!xmlReader->atEnd() && !xmlReader->hasError()){
-			QXmlStreamReader::TokenType token = xmlReader->readNext();
-			if (token == QXmlStreamReader::StartDocument)
-				continue;
-
-			if (xmlReader->hasError()){
-				ROS_ERROR("XML error: %s in %s",xmlReader->errorString().toStdString().c_str(),object.c_str());
-				break;
-			}
-
-			QString elementName = xmlReader->name().toString();
-
-			if (token == QXmlStreamReader::StartElement){
-				if (xmlReader->name() == "Mask"){
-					int number = 0;
-					cv::Mat mask;
-					QXmlStreamAttributes attributes = xmlReader->attributes();
-					if (attributes.hasAttribute("filename")){
-						QString maskpath = attributes.value("filename").toString();
-						//printf("mask filename: %s\n",(sweep_folder+maskpath.toStdString()).c_str());
-						mask = cv::imread(sweep_folder+"/"+(maskpath.toStdString().c_str()), CV_LOAD_IMAGE_UNCHANGED);
-						//mask = cv::imread((maskpath.toStdString()).c_str(), CV_LOAD_IMAGE_UNCHANGED);
-					}else{break;}
-
-
-					if (attributes.hasAttribute("image_number")){
-						QString depthpath = attributes.value("image_number").toString();
-						number = atoi(depthpath.toStdString().c_str());
-						printf("number: %i\n",number);
-					}else{break;}
-
-					mod->frames.push_back(frames[number]->clone());
-					mod->relativeposes.push_back(poses[number]);
-					mod->modelmasks.push_back(new reglib::ModelMask(mask));
-				}
-			}
-		}
-
-		delete xmlReader;
-		models.push_back(mod);
-	}
-
-	for(unsigned int i = 0; i < frames.size(); i++){delete frames[i];}
-
-	return models;
-}
-
-
-
-*/
-
-
-//#include "ros/ros.h"
-//#include "std_msgs/String.h"
-//#include <sensor_msgs/PointCloud2.h>
-//#include <pcl_ros/point_cloud.h>
-//#include <pcl/ros/conversions.h>
-//#include <pcl/point_cloud.h>
-//#include <pcl/point_types.h>
-//#include <pcl/io/pcd_io.h>
-//#include <pcl_conversions/pcl_conversions.h>
-//#include <sensor_msgs/PointCloud2.h>
-//#include <opencv2/core/core.hpp>
-//#include <opencv2/highgui/highgui.hpp>
-//#include "core/RGBDFrame.h"
-//#include <string.h>
-//#include "Util/Util.h"
-//#include "core/DescriptorExtractor.h"
-//#include "ModelDatabase/ModelDatabase.h"
-//#include "ModelStorage/ModelStorage.h"
-//#include "CameraOptimizer/CameraOptimizer.h"
-
-
-#include "Util/Util.h"
+#include <metaroom_detections/metaroom_detections.h>
 
 using namespace std;
 using namespace semantic_map_load_utilties;
@@ -466,7 +27,7 @@ std::vector<cv::Mat> getRGBvec(std::string xmlFile){
 
     file.open(QIODevice::ReadOnly);
 
-    ROS_INFO_STREAM("Parsing xml file: "<<(roomFolder+"/ViewGroup.xml").c_str());
+    //ROS_INFO_STREAM("Parsing xml file: "<<(roomFolder+"/ViewGroup.xml").c_str());
 
     QXmlStreamReader* xmlReader = new QXmlStreamReader(&file);
 
@@ -495,6 +56,93 @@ std::vector<cv::Mat> getRGBvec(std::string xmlFile){
     return rgbs;
 }
 
+std::vector<cv::Mat> getDvec(std::string xmlFile){
+    std::vector<cv::Mat> rgbs;
+    std::string roomFolder = getRoomFolder(xmlFile);
+
+    QFile file((roomFolder+"/ViewGroup.xml").c_str());
+    if (!file.exists()){
+        ROS_ERROR("Could not open file %s to load room.",(roomFolder+"/ViewGroup.xml").c_str());
+        return rgbs;
+    }
+
+    file.open(QIODevice::ReadOnly);
+
+    //ROS_INFO_STREAM("Parsing xml file: "<<(roomFolder+"/ViewGroup.xml").c_str());
+
+    QXmlStreamReader* xmlReader = new QXmlStreamReader(&file);
+
+    while (!xmlReader->atEnd() && !xmlReader->hasError()){
+        QXmlStreamReader::TokenType token = xmlReader->readNext();
+        if (token == QXmlStreamReader::StartDocument)
+            continue;
+
+        if (xmlReader->hasError()){
+            ROS_ERROR("XML error: %s in %s",xmlReader->errorString().toStdString().c_str(), (roomFolder+"/ViewGroup.xml").c_str());
+            return rgbs;
+        }
+
+        QString elementName = xmlReader->name().toString();
+
+        if (token == QXmlStreamReader::StartElement){
+            if (xmlReader->name() == "View"){
+                QXmlStreamAttributes attributes = xmlReader->attributes();
+                if (attributes.hasAttribute("DEPTH")){
+                     rgbs.push_back(cv::imread(roomFolder+"/"+attributes.value("DEPTH").toString().toStdString(), CV_LOAD_IMAGE_UNCHANGED));
+                }else{break;}
+            }
+        }
+    }
+    delete xmlReader;
+    return rgbs;
+}
+
+void getQuasimodoObject(std::string object, std::vector<cv::Mat > & objectMasks, std::vector<unsigned int > & imgNumber){
+
+	std::string roomFolder = getRoomFolder(object);
+	QFile objfile(object.c_str());
+
+	if (!objfile.exists()){
+		ROS_ERROR("Could not open file %s to masks.",object.c_str());
+		return;
+	}
+
+	objfile.open(QIODevice::ReadOnly);
+	//ROS_INFO_STREAM("Parsing xml file: "<<object.c_str());
+
+	QXmlStreamReader* objxmlReader = new QXmlStreamReader(&objfile);
+
+	while (!objxmlReader->atEnd() && !objxmlReader->hasError()){
+		QXmlStreamReader::TokenType token = objxmlReader->readNext();
+		if (token == QXmlStreamReader::StartDocument)
+			continue;
+
+		if (objxmlReader->hasError()){
+			ROS_ERROR("XML error: %s in %s",objxmlReader->errorString().toStdString().c_str(),object.c_str());
+			break;
+		}
+
+		QString elementName = objxmlReader->name().toString();
+
+		if (token == QXmlStreamReader::StartElement){
+			if (objxmlReader->name() == "Mask"){
+				int number = 0;
+				QXmlStreamAttributes attributes = objxmlReader->attributes();
+				if (attributes.hasAttribute("filename")){
+					QString maskpath = attributes.value("filename").toString();
+					objectMasks.push_back(cv::imread(roomFolder+"/"+(maskpath.toStdString().c_str()), CV_LOAD_IMAGE_UNCHANGED));
+				}else{break;}
+
+				if (attributes.hasAttribute("image_number")){
+					QString depthpath = attributes.value("image_number").toString();
+					number = atoi(depthpath.toStdString().c_str());
+					imgNumber.push_back(number);
+				}else{break;}
+			}
+		}
+	}
+}
+
 void getQuasimodoObjects(std::string path, std::vector< std::vector<cv::Mat > > & all_objectMasks, std::vector< std::vector<unsigned int > > & all_imgNumber, std::vector<std::string > & all_names){
     std::string roomFolder = getRoomFolder(path);
     QStringList objectFiles = QDir(roomFolder.c_str()).entryList(QStringList("dynamic_obj*.xml"));
@@ -502,7 +150,7 @@ void getQuasimodoObjects(std::string path, std::vector< std::vector<cv::Mat > > 
 
     for (auto objectFile : objectFiles){
         std::string object = roomFolder+"/"+objectFile.toStdString();
-        printf("object: %s\n",object.c_str());
+        //printf("object: %s\n",object.c_str());
 
         std::vector<cv::Mat > objectMasks;
         std::vector<unsigned int > imgNumber;
@@ -513,46 +161,196 @@ void getQuasimodoObjects(std::string path, std::vector< std::vector<cv::Mat > > 
             ROS_ERROR("Could not open file %s to masks.",object.c_str());
             continue;
         }
+		getQuasimodoObject(object,objectMasks,imgNumber);
 
-        objfile.open(QIODevice::ReadOnly);
-        ROS_INFO_STREAM("Parsing xml file: "<<object.c_str());
+//        objfile.open(QIODevice::ReadOnly);
+//        ROS_INFO_STREAM("Parsing xml file: "<<object.c_str());
 
-        QXmlStreamReader* objxmlReader = new QXmlStreamReader(&objfile);
+//        QXmlStreamReader* objxmlReader = new QXmlStreamReader(&objfile);
 
-        while (!objxmlReader->atEnd() && !objxmlReader->hasError()){
-            QXmlStreamReader::TokenType token = objxmlReader->readNext();
-            if (token == QXmlStreamReader::StartDocument)
-                continue;
+//        while (!objxmlReader->atEnd() && !objxmlReader->hasError()){
+//            QXmlStreamReader::TokenType token = objxmlReader->readNext();
+//            if (token == QXmlStreamReader::StartDocument)
+//                continue;
 
-            if (objxmlReader->hasError()){
-                ROS_ERROR("XML error: %s in %s",objxmlReader->errorString().toStdString().c_str(),object.c_str());
-                break;
-            }
+//            if (objxmlReader->hasError()){
+//                ROS_ERROR("XML error: %s in %s",objxmlReader->errorString().toStdString().c_str(),object.c_str());
+//                break;
+//            }
 
-            QString elementName = objxmlReader->name().toString();
+//            QString elementName = objxmlReader->name().toString();
 
-            if (token == QXmlStreamReader::StartElement){
-                if (objxmlReader->name() == "Mask"){
-                    int number = 0;
-                    QXmlStreamAttributes attributes = objxmlReader->attributes();
-                    if (attributes.hasAttribute("filename")){
-                        QString maskpath = attributes.value("filename").toString();
-                        objectMasks.push_back(cv::imread(roomFolder+"/"+(maskpath.toStdString().c_str()), CV_LOAD_IMAGE_UNCHANGED));
-                    }else{break;}
+//            if (token == QXmlStreamReader::StartElement){
+//                if (objxmlReader->name() == "Mask"){
+//                    int number = 0;
+//                    QXmlStreamAttributes attributes = objxmlReader->attributes();
+//                    if (attributes.hasAttribute("filename")){
+//                        QString maskpath = attributes.value("filename").toString();
+//                        objectMasks.push_back(cv::imread(roomFolder+"/"+(maskpath.toStdString().c_str()), CV_LOAD_IMAGE_UNCHANGED));
+//                    }else{break;}
 
-                    if (attributes.hasAttribute("image_number")){
-                        QString depthpath = attributes.value("image_number").toString();
-                        number = atoi(depthpath.toStdString().c_str());
-                        imgNumber.push_back(number);
-                    }else{break;}
-                }
-            }
-        }
+//                    if (attributes.hasAttribute("image_number")){
+//                        QString depthpath = attributes.value("image_number").toString();
+//                        number = atoi(depthpath.toStdString().c_str());
+//                        imgNumber.push_back(number);
+//                    }else{break;}
+//                }
+//            }
+//        }
         all_objectMasks.push_back(objectMasks);
         all_imgNumber.push_back(imgNumber);
         all_names.push_back(roomFolder+"/"+objectFile.toStdString());
     }
 }
+
+void getRaresObject(std::string object, std::vector<cv::Mat > & objectMasks, std::vector<unsigned int > & imgNumber){
+
+	std::string roomFolder = getRoomFolder(object);
+
+	QFile objfile(object.c_str());
+
+	if (!objfile.exists()){
+		ROS_ERROR("Could not open file %s to masks.",object.c_str());
+		return;
+	}
+
+	objfile.open(QIODevice::ReadOnly);
+	ROS_INFO_STREAM("Parsing xml file: "<<object.c_str());
+
+	QXmlStreamReader* objxmlReader = new QXmlStreamReader(&objfile);
+
+	while (!objxmlReader->atEnd() && !objxmlReader->hasError()){
+		QXmlStreamReader::TokenType token = objxmlReader->readNext();
+		if (token == QXmlStreamReader::StartDocument)
+			continue;
+
+		if (objxmlReader->hasError()){
+			ROS_ERROR("XML error: %s in %s",objxmlReader->errorString().toStdString().c_str(),object.c_str());
+			break;
+		}
+
+		QString elementName = objxmlReader->name().toString();
+
+		if (token == QXmlStreamReader::StartElement){
+			if (objxmlReader->name() == "Mask"){
+				int number = 0;
+				QXmlStreamAttributes attributes = objxmlReader->attributes();
+				if (attributes.hasAttribute("filename")){
+					QString maskpath = attributes.value("filename").toString();
+					//printf("path...: %s\n",(roomFolder+"/"+(maskpath.toStdString().c_str())).c_str());
+
+					cv::Mat mask = cv::imread(roomFolder+"/"+(maskpath.toStdString().c_str()), CV_LOAD_IMAGE_UNCHANGED);
+					cv::Mat img;
+					img.create(480,640,CV_8UC1);
+
+					unsigned char * maskdata = mask.data;
+					unsigned char * imgdata	 = img.data;
+					for(unsigned int i = 0; i < 640*480; i++){
+						if(maskdata[3*i+0] == 0 && maskdata[3*i+1] == 0 && maskdata[3*i+2] == 0){
+							imgdata[i] = 0;
+						}else{
+							imgdata[i] = 255;
+						}
+					}
+					objectMasks.push_back(img);
+
+					//cv::namedWindow( "Mask", cv::WINDOW_AUTOSIZE );
+					//cv::imshow( "Mask",objectMasks.back() );
+					//char c = cv::waitKey(0);
+				}else{break;}
+
+				if (attributes.hasAttribute("image_number")){
+					QString depthpath = attributes.value("image_number").toString();
+					number = atoi(depthpath.toStdString().c_str());
+					imgNumber.push_back(number);
+				}else{break;}
+			}
+		}
+	}
+}
+
+void getRaresObjects(std::string path, std::vector< std::vector<cv::Mat > > & all_objectMasks, std::vector< std::vector<unsigned int > > & all_imgNumber, std::vector<std::string > & all_names){
+
+    std::string roomFolder = getRoomFolder(path);
+    roomFolder += "/mr_clusters/";
+    //printf("getRaresObjects: %s\n",roomFolder.c_str());
+    QStringList objectFiles = QDir(roomFolder.c_str()).entryList(QStringList("dynamic_obj*.xml"));
+
+    for (auto objectFile : objectFiles){
+        std::string object = roomFolder+"/"+objectFile.toStdString();
+        //printf("object: %s\n",object.c_str());
+
+        std::vector<cv::Mat > objectMasks;
+        std::vector<unsigned int > imgNumber;
+
+		QFile objfile(object.c_str());
+
+		if (!objfile.exists()){
+			ROS_ERROR("Could not open file %s to masks.",object.c_str());
+			continue;
+		}
+
+		getRaresObject(object,objectMasks,imgNumber);
+
+//        objfile.open(QIODevice::ReadOnly);
+//        ROS_INFO_STREAM("Parsing xml file: "<<object.c_str());
+
+//        QXmlStreamReader* objxmlReader = new QXmlStreamReader(&objfile);
+
+//        while (!objxmlReader->atEnd() && !objxmlReader->hasError()){
+//            QXmlStreamReader::TokenType token = objxmlReader->readNext();
+//            if (token == QXmlStreamReader::StartDocument)
+//                continue;
+
+//            if (objxmlReader->hasError()){
+//                ROS_ERROR("XML error: %s in %s",objxmlReader->errorString().toStdString().c_str(),object.c_str());
+//                break;
+//            }
+
+//            QString elementName = objxmlReader->name().toString();
+
+//            if (token == QXmlStreamReader::StartElement){
+//                if (objxmlReader->name() == "Mask"){
+//                    int number = 0;
+//                    QXmlStreamAttributes attributes = objxmlReader->attributes();
+//                    if (attributes.hasAttribute("filename")){
+//                        QString maskpath = attributes.value("filename").toString();
+//                        //printf("path...: %s\n",(roomFolder+"/"+(maskpath.toStdString().c_str())).c_str());
+
+//                        cv::Mat mask = cv::imread(roomFolder+"/"+(maskpath.toStdString().c_str()), CV_LOAD_IMAGE_UNCHANGED);
+//                        cv::Mat img;
+//                        img.create(480,640,CV_8UC1);
+
+//                        unsigned char * maskdata = mask.data;
+//                        unsigned char * imgdata	 = img.data;
+//                        for(unsigned int i = 0; i < 640*480; i++){
+//                            if(maskdata[3*i+0] == 0 && maskdata[3*i+1] == 0 && maskdata[3*i+2] == 0){
+//                                imgdata[i] = 0;
+//                            }else{
+//                                imgdata[i] = 255;
+//                            }
+//                        }
+//                        objectMasks.push_back(img);
+
+//                        //cv::namedWindow( "Mask", cv::WINDOW_AUTOSIZE );
+//                        //cv::imshow( "Mask",objectMasks.back() );
+//                        //char c = cv::waitKey(0);
+//                    }else{break;}
+
+//                    if (attributes.hasAttribute("image_number")){
+//                        QString depthpath = attributes.value("image_number").toString();
+//                        number = atoi(depthpath.toStdString().c_str());
+//                        imgNumber.push_back(number);
+//                    }else{break;}
+//                }
+//            }
+//        }
+        all_objectMasks.push_back(objectMasks);
+        all_imgNumber.push_back(imgNumber);
+        all_names.push_back(roomFolder+"/"+objectFile.toStdString());
+    }
+}
+
 
 void getMetaroomObjects(std::string path, std::vector< std::vector<cv::Mat > > & all_objectMasks, std::vector< std::vector<unsigned int > > & all_imgNumber, std::vector<std::string > & all_names){
     auto objects = semantic_map_load_utilties::loadAllDynamicObjectsFromSingleSweep<PointType>(path,true);
@@ -576,7 +374,7 @@ void getMetaroomObjects(std::string path, std::vector< std::vector<cv::Mat > > &
     }
 }
 
-int annotateObject(std::vector< cv::Mat > rgbs, std::vector<cv::Mat > objectMasks, std::vector<unsigned int > imgNumber){
+int annotateObject(std::vector< cv::Mat > rgbs, std::vector<cv::Mat> depths, std::vector<cv::Mat > objectMasks, std::vector<unsigned int > imgNumber){
     int anno = 0;
 
     int max_pixel = 0;
@@ -599,8 +397,9 @@ int annotateObject(std::vector< cv::Mat > rgbs, std::vector<cv::Mat > objectMask
     int thickness = 1;
     int state = 0;
 
-    cv::Mat rgb = rgbs[imgNumber[current_displayInd]].clone();
-    cv::Mat mask = objectMasks[current_displayInd].clone();
+    cv::Mat rgb		= rgbs[imgNumber[current_displayInd]].clone();
+    cv::Mat depth	= depths[imgNumber[current_displayInd]].clone();
+    cv::Mat mask	= objectMasks[current_displayInd].clone();
     while(true){
         std::vector<std::vector<cv::Point> > contours;
         std::vector<cv::Vec4i> hierarchy;
@@ -616,6 +415,7 @@ int annotateObject(std::vector< cv::Mat > rgbs, std::vector<cv::Mat > objectMask
         unsigned int newwidth = width+600;
 
         unsigned char * rgbdata = rgb.data;
+        unsigned short * depthdata = (unsigned short * )(depth.data);
 
         cv::Mat img;
         img.create(height,newwidth,CV_8UC3);
@@ -630,17 +430,31 @@ int annotateObject(std::vector< cv::Mat > rgbs, std::vector<cv::Mat > objectMask
                 imgdata[3*nind + 0] = rgbdata[3*oind + 0];
                 imgdata[3*nind + 1] = rgbdata[3*oind + 1];
                 imgdata[3*nind + 2] = rgbdata[3*oind + 2];
+                if(depthdata[oind] == 0){
+                    imgdata[3*nind + 0] = 255;
+                    imgdata[3*nind + 1] = 0;
+                    imgdata[3*nind + 2] = 255;
+                }
             }
         }
 
         int textnr = 0;
-        putText(img, "1: correct                   ",       cv::Point(width+10,	30+(textnr++)*25   ),	fontFace, fontScale, cv::Scalar::all(255), thickness, 8);
-        putText(img, "2: junk                      ",       cv::Point(width+10,	30+(textnr++)*25   ),	fontFace, fontScale, cv::Scalar::all(255), thickness, 8);
-        putText(img, "3: undersegmented (correct+junk",     cv::Point(width+10,	30+(textnr++)*25   ),	fontFace, fontScale, cv::Scalar::all(255), thickness, 8);
-        putText(img, "4: undersegmented (correct+correct)", cv::Point(width+10,	30+(textnr++)*25   ),	fontFace, fontScale, cv::Scalar::all(255), thickness, 8);
-        putText(img, "5: severly oversegmented",            cv::Point(width+10,	30+(textnr++)*25   ),	fontFace, fontScale, cv::Scalar::all(255), thickness, 8);
-        putText(img, "6: unknown",                          cv::Point(width+10,	30+(textnr++)*25   ),	fontFace, fontScale, cv::Scalar::all(255), thickness, 8);
+//        putText(img, "1: correct                   ",       cv::Point(width+10,	30+(textnr++)*25   ),	fontFace, fontScale, cv::Scalar::all(255), thickness, 8);
+//        putText(img, "2: junk                      ",       cv::Point(width+10,	30+(textnr++)*25   ),	fontFace, fontScale, cv::Scalar::all(255), thickness, 8);
+//        putText(img, "3: undersegmented (correct+junk",     cv::Point(width+10,	30+(textnr++)*25   ),	fontFace, fontScale, cv::Scalar::all(255), thickness, 8);
+//        putText(img, "4: undersegmented (correct+correct)", cv::Point(width+10,	30+(textnr++)*25   ),	fontFace, fontScale, cv::Scalar::all(255), thickness, 8);
+//        putText(img, "5: severly oversegmented",            cv::Point(width+10,	30+(textnr++)*25   ),	fontFace, fontScale, cv::Scalar::all(255), thickness, 8);
+//        putText(img, "6: unknown",                          cv::Point(width+10,	30+(textnr++)*25   ),	fontFace, fontScale, cv::Scalar::all(255), thickness, 8);
+//        putText(img, "next: W previous: Q",                 cv::Point(width+10,	30+(textnr++)*25   ),	fontFace, fontScale, cv::Scalar::all(255), thickness, 8);
+
+        putText(img, "1: correct (overlap >  90%)   ",       cv::Point(width+10,	30+(textnr++)*25   ),	fontFace, fontScale, cv::Scalar::all(255), thickness, 8);
+        putText(img, "2: correct (overlap >= 50%)   ",       cv::Point(width+10,	30+(textnr++)*25   ),	fontFace, fontScale, cv::Scalar::all(255), thickness, 8);
+        putText(img, "3: correct (overlap <  50%)   ",       cv::Point(width+10,	30+(textnr++)*25   ),	fontFace, fontScale, cv::Scalar::all(255), thickness, 8);
+        putText(img, "4: undersegmented            ",       cv::Point(width+10,	30+(textnr++)*25   ),	fontFace, fontScale, cv::Scalar::all(255), thickness, 8);
+        putText(img, "5: includes junk             ",       cv::Point(width+10,	30+(textnr++)*25   ),	fontFace, fontScale, cv::Scalar::all(255), thickness, 8);
+        putText(img, "6: unknown                   ",       cv::Point(width+10,	30+(textnr++)*25   ),	fontFace, fontScale, cv::Scalar::all(255), thickness, 8);
         putText(img, "next: W previous: Q",                 cv::Point(width+10,	30+(textnr++)*25   ),	fontFace, fontScale, cv::Scalar::all(255), thickness, 8);
+
 
         char buf [1024];
         sprintf(buf,"   Image:     %i / %i",current_displayInd+1,objectMasks.size());
@@ -654,12 +468,14 @@ int annotateObject(std::vector< cv::Mat > rgbs, std::vector<cv::Mat > objectMask
         if(c == 'q' || c == 'Q'){
             current_displayInd = std::max(int(current_displayInd-1),0);
             rgb = rgbs[imgNumber[current_displayInd]].clone();
+            depth = depths[imgNumber[current_displayInd]].clone();
             mask = objectMasks[current_displayInd].clone();
         }
 
         if(c == 'w' || c == 'W'){
             current_displayInd = std::min(int(current_displayInd+1),int(imgNumber.size()-1));
             rgb = rgbs[imgNumber[current_displayInd]].clone();
+            depth = depths[imgNumber[current_displayInd]].clone();
             mask = objectMasks[current_displayInd].clone();
         }
 
@@ -668,16 +484,16 @@ int annotateObject(std::vector< cv::Mat > rgbs, std::vector<cv::Mat > objectMask
         if(c == '3'){return 3;}
         if(c == '4'){return 4;}
         if(c == '5'){return 5;}
-        if(c == '6'){return 5;}
+        if(c == '6'){return 6;}
     }
 
     return anno;
 }
 
-std::vector<int> annotateObjects(std::vector< cv::Mat > rgbs, std::vector< std::vector<cv::Mat > > & all_objectMasks, std::vector< std::vector<unsigned int > > & all_imgNumber){
+std::vector<int> annotateObjects(std::vector< cv::Mat > rgbs, std::vector<cv::Mat> depths, std::vector< std::vector<cv::Mat > > & all_objectMasks, std::vector< std::vector<unsigned int > > & all_imgNumber){
     std::vector<int> annos;
     for(unsigned int i = 0; i < all_objectMasks.size(); i++){
-        annos.push_back(annotateObject(rgbs,all_objectMasks[i], all_imgNumber[i]));
+        annos.push_back(annotateObject(rgbs,depths,all_objectMasks[i], all_imgNumber[i]));
     }
     return annos;
 }
@@ -687,7 +503,7 @@ void saveAnnotationResults(std::string filename, std::vector<int> labels,  std::
     for(unsigned int i = 0; i < labels.size(); i++){
         total += std::to_string(labels[i])+" "+names[i]+"\n";
     }
-    std::cout << total << std::endl;
+    //std::cout << total << std::endl;
 
     std::ofstream myfile;
     myfile.open (filename);
@@ -696,209 +512,286 @@ void saveAnnotationResults(std::string filename, std::vector<int> labels,  std::
 
 }
 
-void drawSeg(std::vector<cv::Mat> rgbs, std::vector< std::vector<cv::Mat > > quasuimodo_all_objectMasks, std::vector< std::vector<unsigned int > > quasuimodo_all_imgNumber){
-	std::vector<int> randr;
-	std::vector<int> randg;
-	std::vector<int> randb;
-	for(unsigned int i = 0; i < quasuimodo_all_objectMasks.size(); i++){
-		randr.push_back(rand()%256);
-		randg.push_back(rand()%256);
-		randb.push_back(rand()%256);
-	}
-
-
-	for(unsigned int i = 0; i < rgbs.size(); i++){
-		while(true){
-			cv::Mat rgb = rgbs[i].clone();
-			cv::Mat rgb_cont = rgbs[i].clone();
-			cv::Mat rgb_col = rgbs[i].clone();
-
-			unsigned char * rgb_data = rgb_col.data;
-
-
-			for(unsigned int j = 0; j < quasuimodo_all_objectMasks.size(); j++){
-				for(unsigned int k = 0; k < quasuimodo_all_imgNumber.size(); k++){
-					if(quasuimodo_all_imgNumber[j][k] == i){
-						std::vector<std::vector<cv::Point> > contours;
-						std::vector<cv::Vec4i> hierarchy;
-
-						cv::findContours( quasuimodo_all_objectMasks[j][k], contours, hierarchy, CV_RETR_TREE, CV_CHAIN_APPROX_SIMPLE, cv::Point(0, 0) );
-						for( unsigned int i = 0; i < contours.size(); i++ ){
-							cv::drawContours( rgb_cont, contours, i, cv::Scalar( 0, 0, 255 ), 2, 8, hierarchy, 0, cv::Point() );
-							cv::drawContours( rgb_cont, contours, i, cv::Scalar( 0, 255, 0 ), 1, 8, hierarchy, 0, cv::Point() );
-						}
-
-//						int r = randr[j];
-//						int g = randg[j];
-//						int b = randb[j];
-//						unsigned char * maskdata = quasuimodo_all_objectMasks[j][k].data;
-//						for(unsigned int l = 0; l < 640*480; l++){
-//							if(maskdata[l] != 0){
-//								rgb_data[3*l+0] = b;
-//								rgb_data[3*l+1] = g;
-//								rgb_data[3*l+2] = r;
-//							}
-//						}
-					}
-				}
-			}
-
-			cv::namedWindow( "rgb",cv::WINDOW_AUTOSIZE );
-			cv::imshow( "rgb",rgb );
-
-			cv::namedWindow( "rgb_cont",cv::WINDOW_AUTOSIZE );
-			cv::imshow( "rgb_cont",rgb_cont );
-
-
-			cv::namedWindow( "rgb_col",cv::WINDOW_AUTOSIZE );
-			cv::imshow( "rgb_col",rgb_cont );
-
-			char c = cv::waitKey(0);
-			break;
-			/*
-			std::vector<std::vector<cv::Point> > contours;
-			std::vector<cv::Vec4i> hierarchy;
-
-			cv::findContours( mask, contours, hierarchy, CV_RETR_TREE, CV_CHAIN_APPROX_SIMPLE, cv::Point(0, 0) );
-			for( unsigned int i = 0; i < contours.size(); i++ ){
-				cv::drawContours( rgb, contours, i, cv::Scalar( 0, 0, 255 ), 2, 8, hierarchy, 0, cv::Point() );
-				cv::drawContours( rgb, contours, i, cv::Scalar( 0, 255, 0 ), 1, 8, hierarchy, 0, cv::Point() );
-			}
-
-			unsigned int height	= rgb.rows;
-			unsigned int width	= rgb.cols;
-			unsigned int newwidth = width+600;
-
-			unsigned char * rgbdata = rgb.data;
-
-			cv::Mat img;
-			img.create(height,newwidth,CV_8UC3);
-			unsigned char * imgdata = img.data;
-
-			for(unsigned int i = 0; i < 3*height*newwidth; i++){imgdata[i] = 0;}
-
-			for(unsigned int w = 0; w < width;w++){
-				for(unsigned int h = 0; h < height;h++){
-					int oind = h*width+w;
-					int nind = h*newwidth+w;
-					imgdata[3*nind + 0] = rgbdata[3*oind + 0];
-					imgdata[3*nind + 1] = rgbdata[3*oind + 1];
-					imgdata[3*nind + 2] = rgbdata[3*oind + 2];
-				}
-			}
-
-			int textnr = 0;
-			putText(img, "1: correct                   ",       cv::Point(width+10,	30+(textnr++)*25   ),	fontFace, fontScale, cv::Scalar::all(255), thickness, 8);
-			putText(img, "2: junk                      ",       cv::Point(width+10,	30+(textnr++)*25   ),	fontFace, fontScale, cv::Scalar::all(255), thickness, 8);
-			putText(img, "3: undersegmented (correct+junk",     cv::Point(width+10,	30+(textnr++)*25   ),	fontFace, fontScale, cv::Scalar::all(255), thickness, 8);
-			putText(img, "4: undersegmented (correct+correct)", cv::Point(width+10,	30+(textnr++)*25   ),	fontFace, fontScale, cv::Scalar::all(255), thickness, 8);
-			putText(img, "5: severly oversegmented",            cv::Point(width+10,	30+(textnr++)*25   ),	fontFace, fontScale, cv::Scalar::all(255), thickness, 8);
-			putText(img, "6: unknown",                          cv::Point(width+10,	30+(textnr++)*25   ),	fontFace, fontScale, cv::Scalar::all(255), thickness, 8);
-			putText(img, "next: W previous: Q",                 cv::Point(width+10,	30+(textnr++)*25   ),	fontFace, fontScale, cv::Scalar::all(255), thickness, 8);
-
-			char buf [1024];
-			sprintf(buf,"   Image:     %i / %i",current_displayInd+1,objectMasks.size());
-			putText(img, std::string(buf), cv::Point(width+10,			30+(textnr++)*25   ), fontFace, fontScale, cv::Scalar::all(255), thickness, 8);
-
-	//        putText(img, "   Select state(pushed CTRL)",cv::Point(width+10,	30+(textnr++)*25   ),	fontFace, fontScale, cv::Scalar::all(255), thickness, 8);
-	//        putText(img, "--", cv::Point(width+5,	30+state*25   ), fontFace, fontScale, cv::Scalar(0,255,0), thickness, 8);
-
-			cv::namedWindow( "Annotation tool",				cv::WINDOW_AUTOSIZE );	cv::imshow( "Annotation tool",img );
-			char c = cv::waitKey(0);
-			if(c == 'q' || c == 'Q'){
-				current_displayInd = std::max(int(current_displayInd-1),0);
-				rgb = rgbs[imgNumber[current_displayInd]].clone();
-				mask = objectMasks[current_displayInd].clone();
-			}
-
-			if(c == 'w' || c == 'W'){
-				current_displayInd = std::min(int(current_displayInd+1),int(imgNumber.size()-1));
-				rgb = rgbs[imgNumber[current_displayInd]].clone();
-				mask = objectMasks[current_displayInd].clone();
-			}
-
-			if(c == '1'){return 1;}
-			if(c == '2'){return 2;}
-			if(c == '3'){return 3;}
-			if(c == '4'){return 4;}
-			if(c == '5'){return 5;}
-			if(c == '6'){return 5;}
-			*/
-		}
-	}
-
-}
 
 bool annotate(std::string path){
-    printf("annotate: %s\n",path.c_str());
-
+    //printf("annotate: %s\n",path.c_str());
     std::string roomFolder = getRoomFolder(path);
 
-    std::vector<cv::Mat> rgbs =  getRGBvec(path);
+    std::vector<cv::Mat> rgbs	=  getRGBvec(path);
+    std::vector<cv::Mat> depths =  getDvec(path);
+    QFile raresfile((roomFolder+"/rares_annotation3.txt").c_str());
+    if (!raresfile.exists()){
+        printf("doing rares segments\n");
+        std::vector< std::vector<cv::Mat > > quasuimodo_all_objectMasks;
+        std::vector< std::vector<unsigned int > > quasuimodo_all_imgNumber;
+        std::vector<std::string > quasuimodo_all_names;
+        getRaresObjects(path,quasuimodo_all_objectMasks,quasuimodo_all_imgNumber,quasuimodo_all_names);
 
-	if(true){
-    std::vector< std::vector<cv::Mat > > quasuimodo_all_objectMasks;
-    std::vector< std::vector<unsigned int > > quasuimodo_all_imgNumber;
-    std::vector<std::string > quasuimodo_all_names;
-    getQuasimodoObjects(path,quasuimodo_all_objectMasks,quasuimodo_all_imgNumber,quasuimodo_all_names);
-
-	drawSeg(rgbs,quasuimodo_all_objectMasks,quasuimodo_all_imgNumber);
-
-
-    std::vector<int> quasimodo_labels = annotateObjects(rgbs,quasuimodo_all_objectMasks,quasuimodo_all_imgNumber);
-    saveAnnotationResults(roomFolder+"quasimodo_annotation.txt", quasimodo_labels, quasuimodo_all_names);
+        //drawSeg(rgbs,quasuimodo_all_objectMasks,quasuimodo_all_imgNumber);
+        std::vector<int> quasimodo_labels = annotateObjects(rgbs,depths,quasuimodo_all_objectMasks,quasuimodo_all_imgNumber);
+        saveAnnotationResults(roomFolder+"/rares_annotation3.txt", quasimodo_labels, quasuimodo_all_names);
     }
 
-	if(false){
-    std::vector< std::vector<cv::Mat > > metaroom_all_objectMasks;
-    std::vector< std::vector<unsigned int > > metaroom_all_imgNumber;
-    std::vector<std::string > metaroom_all_names;
-    getMetaroomObjects(path,metaroom_all_objectMasks,metaroom_all_imgNumber,metaroom_all_names);
+    QFile quasimodofile((roomFolder+"/quasimodo_annotation3.txt").c_str());
+    if (!quasimodofile.exists()){
+        printf("doing quasimodo segments\n");
+        std::vector< std::vector<cv::Mat > > quasuimodo_all_objectMasks;
+        std::vector< std::vector<unsigned int > > quasuimodo_all_imgNumber;
+        std::vector<std::string > quasuimodo_all_names;
+        getQuasimodoObjects(path,quasuimodo_all_objectMasks,quasuimodo_all_imgNumber,quasuimodo_all_names);
 
-    std::vector<int> metaroom_labels = annotateObjects(rgbs,metaroom_all_objectMasks,metaroom_all_imgNumber);
-    saveAnnotationResults(roomFolder+"metaroom_annotation.txt", metaroom_labels, metaroom_all_names);
+        std::vector<int> quasimodo_labels = annotateObjects(rgbs,depths,quasuimodo_all_objectMasks,quasuimodo_all_imgNumber);
+        saveAnnotationResults(roomFolder+"/quasimodo_annotation3.txt", quasimodo_labels, quasuimodo_all_names);
     }
+
     return true;
 }
 
-bool annotateFiles(std::string path){
+
+
+class AnnotationResult{
+    public:
+
+    std::vector<int> data;
+    std::string name;
+
+    void print(){
+        printf("\n\n");
+        printf("===== algorithm: %s =====\n",name.c_str());
+        //        printf("correct                           %i\n",data[0]);
+        //        printf("junk                              %i\n",data[1]);
+        //        printf("undersegmented (correct+junk)     %i\n",data[2]);
+        //        printf("undersegmented (correct+correct)  %i\n",data[3]);
+        //        printf("severly oversegmented             %i\n",data[4]);
+        //        printf("unknown                           %i\n",data[5]);
+
+		double sum = data[0]+data[1]+data[2]+data[3]+data[4];
+
+		printf("correct (overlap >  90%)          %4.4i (%5.5f %%)\n",data[0],100.0*double(data[0])/sum);
+		printf("correct (overlap >= 50%)          %4.4i (%5.5f %%)\n",data[1],100.0*double(data[1])/sum);
+		printf("correct (overlap <  50%)          %4.4i (%5.5f %%)\n",data[2],100.0*double(data[2])/sum);
+		printf("undersegmented                    %4.4i (%5.5f %%)\n",data[3],100.0*double(data[3])/sum);
+		printf("includes junk                     %4.4i (%5.5f %%)\n",data[4],100.0*double(data[4])/sum);
+		printf("unknown                           %4.4i\n",data[5]);
+		printf("not unknown                       %4.4i\n",int(sum));
+    }
+
+    void add(AnnotationResult a){
+        data[0] += a.data[0];
+        data[1] += a.data[1];
+        data[2] += a.data[2];
+        data[3] += a.data[3];
+        data[4] += a.data[4];
+        data[5] += a.data[5];
+    }
+
+    AnnotationResult(std::string name_ = ""){
+        name = name_;
+        data.resize(6);
+        data[0] = 0;
+        data[1] = 0;
+        data[2] = 0;
+        data[3] = 0;
+        data[4] = 0;
+        data[5] = 0;
+    }
+
+    ~AnnotationResult(){}
+};
+
+std::vector< cv::Mat > getPeopleDetections(std::string peoplepath){
+	std::vector<std::vector<std::tuple<float, float, float, float> > > detections;
+	detections = metaroom_detections::detections_for_xml(peoplepath, "intermediate_deep_detection");
+
+	std::vector<cv::Mat> peopleMasks;
+	for(unsigned int i = 0; i < detections.size(); i++){
+		cv::Mat peoplemask;
+		int width	= 640;
+		int height	= 480;
+		peoplemask.create(height,width,CV_8UC1);
+		unsigned int nr_pixels = width*height;
+		for(unsigned int j = 0; j < nr_pixels; j++){peoplemask.data[j] = 0;}
+		peopleMasks.push_back(peoplemask);
+	}
+
+	unsigned int count = 0;
+	for (std::vector<std::tuple<float, float, float, float> >& image_dets : detections) {
+		for (std::tuple<float, float, float, float>& det : image_dets) {
+			cv::rectangle(peopleMasks[count], cv::Rect(std::get<0>(det),std::get<1>(det),std::get<2>(det),std::get<3>(det)), cv::Scalar(255,255,255), -1);
+		}
+		count++;
+	}
+
+	return peopleMasks;
+}
+
+bool verifyObject_quasimodo(std::string object, std::vector< cv::Mat > rejections){
+	std::vector<cv::Mat > objectMasks;
+	std::vector<unsigned int > imgNumber;
+	getQuasimodoObject(object,objectMasks,imgNumber);
+	for(unsigned int i = 0; i < imgNumber.size(); i++){
+		unsigned char * rejectionmask = rejections[imgNumber[i]].data;
+		unsigned char * objectmask = objectMasks[i].data;
+
+		int width	= 640;
+		int height	= 480;
+		unsigned int nr_pixels = width*height;
+		for(unsigned int j = 0; j < nr_pixels; j++){
+			if(rejectionmask[j] != 0 && objectmask[j] != 0){
+				return false;
+			}
+		}
+	}
+	return true;
+}
+
+bool verifyObject_rares(std::string object, std::vector< cv::Mat > rejections){
+	std::vector<cv::Mat > objectMasks;
+	std::vector<unsigned int > imgNumber;
+	getRaresObject(object,objectMasks,imgNumber);
+	for(unsigned int i = 0; i < imgNumber.size(); i++){
+		unsigned char * rejectionmask = rejections[imgNumber[i]].data;
+		unsigned char * objectmask = objectMasks[i].data;
+
+		int width	= 640;
+		int height	= 480;
+		unsigned int nr_pixels = width*height;
+		for(unsigned int j = 0; j < nr_pixels; j++){
+			if(rejectionmask[j] != 0 && objectmask[j] != 0){
+				return false;
+			}
+		}
+	}
+	return true;
+}
+
+AnnotationResult summarize(std::string rootpath, std::string path, std::string algorithm, std::string peoplepath = ""){
+    AnnotationResult a = AnnotationResult();
+    std::string filename = getRoomFolder(path)+"/"+algorithm+"_annotation3.txt";
+    std::string line;
+    std::ifstream myfile (filename);
+
+	std::vector< cv::Mat > detmats;
+	if(peoplepath.length() > 0){detmats = getPeopleDetections(peoplepath);}
+
+    if (myfile.is_open()){
+        while ( getline (myfile,line) ){
+			//std::cout << line << '\n';
+
+			std::string path = line.substr(2,line.length()-2);
+			//printf("path: %s\n",path.c_str());
+			bool valid = true;
+			if(detmats.size() > 0){
+				if(algorithm.compare("quasimodo") == 0){
+					valid = verifyObject_quasimodo(rootpath+"/"+path,detmats);
+				}
+				if(algorithm.compare("rares") == 0){
+					valid = verifyObject_rares(rootpath+"/"+path,detmats);
+				}
+			}
+
+            //a.data[0]++;
+			if(valid){
+				a.data[int(line.front())-int('1')]++;
+			}
+        }
+        myfile.close();
+    } else {std::cout << "Unable to open file";}
+    return a;
+}
+
+bool summarizeFiles(std::string path, std::string peoplepath = ""){
+	AnnotationResult rares			  ("rares");
+	AnnotationResult quasimodo		  ("quasimodo");
+	AnnotationResult rares_people     ("rares + people rejection");
+	AnnotationResult quasimodo_people ("quasimodo + people rejection");
+
     vector<string> sweep_xmls = semantic_map_load_utilties::getSweepXmls<PointType>(path);
+	int pl = path.length();
+	int ppl = peoplepath.length();
     for (auto sweep_xml : sweep_xmls) {
-        annotate(sweep_xml);
+		printf("room:%s\n",sweep_xml.c_str());
+		rares.add(summarize(path,sweep_xml, "rares"));
+		quasimodo.add(summarize(path,sweep_xml, "quasimodo"));
+		if(ppl > 0){
+			std::string local = sweep_xml.substr(pl);
+			local = local.substr(0,local.length()-8);
+			std::string pp = peoplepath+local;
+
+			rares_people.add(		summarize(path, sweep_xml, "rares",	   pp));
+			quasimodo_people.add(	summarize(path, sweep_xml, "quasimodo",pp));
+		}
+    }
+
+    printf("\n\n\n\n");
+    printf("|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||\n");
+    printf("dataset: %s\n",path.c_str());
+	printf("|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||\n");
+	rares.print();
+	quasimodo.print();
+	rares_people.print();
+	quasimodo_people.print();
+    return false;
+}
+
+bool annotateFiles(std::string path){
+    AnnotationResult rares     ("rares");
+    AnnotationResult quasimodo ("quasimodo");
+
+    vector<string> sweep_xmls = semantic_map_load_utilties::getSweepXmls<PointType>(path);
+    //for (auto sweep_xml : sweep_xmls) {
+    for (unsigned int i = 0; i < sweep_xmls.size(); i++) {
+        printf("\n\n\n\n");
+        printf("|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||\n");
+        printf("sweep %i / %i\n",i+1,sweep_xmls.size());
+
+        annotate(sweep_xmls[i]);
+
+		//rares.add(summarize(sweep_xmls[i], "rares"));
+		//quasimodo.add(summarize(sweep_xmls[i], "quasimodo"));
+        rares.print();
+        quasimodo.print();
+
     }
     return false;
 }
 
 int main(int argc, char** argv){
 
-	visualization_lvl = 0;
+    visualization_lvl = 0;
 
-
-	std::vector< std::string > folders;
-	int inputstate = 0;
-	for(int i = 1; i < argc;i++){
-		printf("input: %s\n",argv[i]);
-		if(std::string(argv[i]).compare("-v") == 0){			inputstate	= 1;}
-		else if(std::string(argv[i]).compare("-folder") == 0){	inputstate	= 2;}
-		else if(std::string(argv[i]).compare("-folders") == 0){	inputstate	= 2;}
-		else if(std::string(argv[i]).compare("-file") == 0){	inputstate	= 2;}
-		else if(std::string(argv[i]).compare("-files") == 0){	inputstate	= 2;}
+	std::vector< std::string > peoplepaths;
+    std::vector< std::string > folders;
+    int inputstate = 2;
+    for(int i = 1; i < argc;i++){
+        printf("input: %s\n",argv[i]);
+        if(std::string(argv[i]).compare("-v") == 0){			inputstate	= 1;}
+        else if(std::string(argv[i]).compare("-folder") == 0){	inputstate	= 2;}
+        else if(std::string(argv[i]).compare("-folders") == 0){	inputstate	= 2;}
+        else if(std::string(argv[i]).compare("-file") == 0){	inputstate	= 2;}
+        else if(std::string(argv[i]).compare("-files") == 0){	inputstate	= 2;}
+		else if(std::string(argv[i]).compare("-people") == 0){	inputstate	= 3;}
 		else if(inputstate == 1){visualization_lvl = atoi(argv[i]);}
 		else if(inputstate == 2){folders.push_back(std::string(argv[i]));}
+		else if(inputstate == 3){peoplepaths.push_back(std::string(argv[i]));}
+    }
+
+    if(visualization_lvl > 0){
+        viewer = boost::shared_ptr<pcl::visualization::PCLVisualizer>(new pcl::visualization::PCLVisualizer ("3D Viewer"));
+        viewer->setBackgroundColor (0.5, 0, 0.5);
+        viewer->addCoordinateSystem (1.0);
+        viewer->initCameraParameters ();
+    }
+
+	if(folders.size() == 0){
+		folders.push_back(std::string(getenv ("HOME"))+"/.semanticMap/");
+		peoplepaths.push_back(folders.back());
 	}
 
-	if(visualization_lvl > 0){
-		viewer = boost::shared_ptr<pcl::visualization::PCLVisualizer>(new pcl::visualization::PCLVisualizer ("3D Viewer"));
-		viewer->setBackgroundColor (0.5, 0, 0.5);
-		viewer->addCoordinateSystem (1.0);
-		viewer->initCameraParameters ();
-	}
-
-	if(folders.size() == 0){folders.push_back(std::string(getenv ("HOME"))+"/.semanticMap/");}
-
-    for(unsigned int i = 0; i < folders.size(); i++){annotateFiles(folders[i]);}
+	//for(unsigned int i = 0; i < folders.size(); i++){annotateFiles(folders[i]);}
+	for(unsigned int i = 0; i < folders.size(); i++){summarizeFiles(folders[i],peoplepaths[i]);}
 
     printf("done annotating\n");
 
-	return 0;
+    return 0;
 }
