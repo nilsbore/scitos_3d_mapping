@@ -547,6 +547,142 @@ bool annotate(std::string path){
     return true;
 }
 
+std::vector<int> getInds(std::string line){
+	std::vector<int> ret;
+	std::string current = "";
+	for(unsigned int i = 0; i < line.length(); i++){
+		char c = line[i];
+		if(c == ' '){
+			ret.push_back(atoi(current.c_str()));
+			current = "";
+		}else if( c >= '0' && c <= '9'){
+			current += c;
+		}
+	}
+	return ret;
+}
+
+int annotateMergeQuasimodo(std::string root, std::string folder, std::vector< int > labels, std::vector< std::string > object_paths, std::vector<int> inds){
+	if(inds.size() == 1){
+		return labels[inds[0]];
+	}
+
+
+	for(unsigned int i = 0; i < inds.size(); i++){//If anything is junk, everything is junk
+		if(labels[inds[i]] == 4){return 4;}
+	}
+
+
+	for(unsigned int i = 0; i < inds.size(); i++){//If anything is undersegmented, everything is undersegmented
+		if(labels[inds[i]] == 3){return 4;}
+	}
+
+	unsigned int unknown_count = 0;
+	for(unsigned int i = 0; i < inds.size(); i++){//If everything is unknown, everything is unknown...
+		if(labels[inds[i]] == 5){unknown_count++;}
+	}
+	if(unknown_count == inds.size()){return 5;}
+
+	printf("---------------------------------------------\n");
+	for(unsigned int i = 0; i < inds.size(); i++){
+		printf("inds: %i -> label: %i -> path: %s\n",inds[i],labels[inds[i]],object_paths[inds[i]].c_str());
+	}
+
+	std::vector<cv::Mat > full_objectMasks;
+	std::vector<unsigned int > full_imgNumber;
+
+	std::vector<cv::Mat> rgbs	=  getRGBvec(folder+"/");
+	std::vector<cv::Mat> depths =  getDvec(folder+"/");
+
+	for(unsigned int i = 0; i < inds.size(); i++){
+		std::vector<cv::Mat > objectMasks;
+		std::vector<unsigned int > imgNumber;
+		getQuasimodoObject(object_paths[inds[i]],objectMasks,imgNumber);
+
+		for(unsigned int j = 0; j < imgNumber.size(); j++){
+			bool is_new = true;
+			for(unsigned int k = 0; k < full_imgNumber.size(); k++){
+				if(imgNumber[j] == full_imgNumber[k]){//found this img before, merge
+					is_new = false;
+
+					unsigned char * data_old = full_objectMasks[k].data;
+					unsigned char * data_new =      objectMasks[j].data;
+
+					for(unsigned int n = 0; n < 640*480; n++){
+						data_old[n] = std::max(data_old[n],data_new[n]);
+					}
+				}
+			}
+			if(is_new){
+				full_objectMasks.push_back(objectMasks[j]);
+				full_imgNumber.push_back(imgNumber[j]);
+			}
+		}
+	}
+
+
+
+	std::vector< std::vector<cv::Mat > > all_objectMasks;
+	std::vector< std::vector<unsigned int > > all_imgNumber;
+	all_objectMasks.push_back(full_objectMasks);
+	all_imgNumber.push_back(full_imgNumber);
+
+	std::vector<int> final_labels = annotateObjects(rgbs,depths,all_objectMasks,all_imgNumber);
+
+	printf("---------------------------------------------\n");
+
+	return final_labels[0];
+}
+
+bool annotateMerges(std::string root, std::string path){
+
+	printf("annotateMerge(%s)\n",path.c_str());
+	std::string roomFolder = getRoomFolder(path);
+
+	std::string quasimodofile_path = roomFolder+"/quasimodo_annotation3.txt";
+	QFile quasimodofile(quasimodofile_path.c_str());
+	if (quasimodofile.exists()){
+		std::string consolidate_file_path = roomFolder+"/consolidated_indices.txt";
+		QFile consolidate_file(consolidate_file_path.c_str());
+		if (consolidate_file.exists()){
+			printf("consolidate_file: %s\n",consolidate_file_path.c_str());
+			std::string line;
+
+			std::vector< int > labels;
+			std::vector< std::string > object_paths;
+
+			std::ifstream label_file (quasimodofile_path);
+			if (label_file.is_open()){
+				while ( getline (label_file,line) ){
+					object_paths.push_back(root+"/"+line.substr(2,line.length()-2));
+					labels.push_back(int(line.front())-int('1'));
+				}
+				label_file.close();
+			} else {std::cout << "Unable to open file";}
+
+
+			std::ifstream myfile (consolidate_file_path);
+			if (myfile.is_open()){
+				while ( getline (myfile,line) ){
+					int nr = annotateMergeQuasimodo(root,roomFolder,labels,object_paths,getInds(line));
+				}
+				myfile.close();
+			} else {std::cout << "Unable to open file";}
+		}else{
+			printf("consolidate_file does not exist\n");
+		}
+//        printf("doing quasimodo segments\n");
+//        std::vector< std::vector<cv::Mat > > quasuimodo_all_objectMasks;
+//        std::vector< std::vector<unsigned int > > quasuimodo_all_imgNumber;
+//        std::vector<std::string > quasuimodo_all_names;
+//        getQuasimodoObjects(path,quasuimodo_all_objectMasks,quasuimodo_all_imgNumber,quasuimodo_all_names);
+
+//        std::vector<int> quasimodo_labels = annotateObjects(rgbs,depths,quasuimodo_all_objectMasks,quasuimodo_all_imgNumber);
+//        saveAnnotationResults(roomFolder+"/quasimodo_annotation3.txt", quasimodo_labels, quasuimodo_all_names);
+	}
+
+	return true;
+}
 
 
 class AnnotationResult{
@@ -558,15 +694,7 @@ class AnnotationResult{
     void print(){
         printf("\n\n");
         printf("===== algorithm: %s =====\n",name.c_str());
-        //        printf("correct                           %i\n",data[0]);
-        //        printf("junk                              %i\n",data[1]);
-        //        printf("undersegmented (correct+junk)     %i\n",data[2]);
-        //        printf("undersegmented (correct+correct)  %i\n",data[3]);
-        //        printf("severly oversegmented             %i\n",data[4]);
-        //        printf("unknown                           %i\n",data[5]);
-
 		double sum = data[0]+data[1]+data[2]+data[3]+data[4];
-
 		printf("correct (overlap >  90%)          %4.4i (%5.5f %%)\n",data[0],100.0*double(data[0])/sum);
 		printf("correct (overlap >= 50%)          %4.4i (%5.5f %%)\n",data[1],100.0*double(data[1])/sum);
 		printf("correct (overlap <  50%)          %4.4i (%5.5f %%)\n",data[2],100.0*double(data[2])/sum);
@@ -676,10 +804,7 @@ AnnotationResult summarize(std::string rootpath, std::string path, std::string a
 
     if (myfile.is_open()){
         while ( getline (myfile,line) ){
-			//std::cout << line << '\n';
-
 			std::string path = line.substr(2,line.length()-2);
-			//printf("path: %s\n",path.c_str());
 			bool valid = true;
 			if(detmats.size() > 0){
 				if(algorithm.compare("quasimodo") == 0){
@@ -690,7 +815,6 @@ AnnotationResult summarize(std::string rootpath, std::string path, std::string a
 				}
 			}
 
-            //a.data[0]++;
 			if(valid){
 				a.data[int(line.front())-int('1')]++;
 			}
@@ -735,22 +859,23 @@ bool summarizeFiles(std::string path, std::string peoplepath = ""){
 }
 
 bool annotateFiles(std::string path){
-    AnnotationResult rares     ("rares");
-    AnnotationResult quasimodo ("quasimodo");
+	//AnnotationResult rares     ("rares");
+	//AnnotationResult quasimodo ("quasimodo");
 
     vector<string> sweep_xmls = semantic_map_load_utilties::getSweepXmls<PointType>(path);
     //for (auto sweep_xml : sweep_xmls) {
     for (unsigned int i = 0; i < sweep_xmls.size(); i++) {
-        printf("\n\n\n\n");
-        printf("|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||\n");
-        printf("sweep %i / %i\n",i+1,sweep_xmls.size());
+		//printf("\n\n\n\n");
+		//printf("|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||\n");
+		//printf("sweep %i / %i\n",i+1,sweep_xmls.size());
 
         annotate(sweep_xmls[i]);
+		annotateMerges(path,sweep_xmls[i]);
 
 		//rares.add(summarize(sweep_xmls[i], "rares"));
 		//quasimodo.add(summarize(sweep_xmls[i], "quasimodo"));
-        rares.print();
-        quasimodo.print();
+		//rares.print();
+		//quasimodo.print();
 
     }
     return false;
@@ -788,7 +913,7 @@ int main(int argc, char** argv){
 		peoplepaths.push_back(folders.back());
 	}
 
-	//for(unsigned int i = 0; i < folders.size(); i++){annotateFiles(folders[i]);}
+	for(unsigned int i = 0; i < folders.size(); i++){annotateFiles(folders[i]);}
 	for(unsigned int i = 0; i < folders.size(); i++){summarizeFiles(folders[i],peoplepaths[i]);}
 
     printf("done annotating\n");
