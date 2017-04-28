@@ -102,6 +102,10 @@ float recursive_split(std::vector<Graph*> * graphs_out,std::vector<std::vector<i
 
 std::vector<int> partition_graph(std::vector< std::vector< float > > & scores);
 
+std::vector<double> getVector(Eigen::VectorXd data);
+double getMedian(std::vector<double> data);
+double getMedian(Eigen::VectorXd data);
+
 inline double getNoise(double depth){return depth*depth;}
 
 inline double getInformation(double depth){

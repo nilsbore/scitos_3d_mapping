@@ -678,10 +678,11 @@ int MassRegistrationPPR3::total_nonconverged(std::vector<Eigen::Matrix4d> before
 
 double MassRegistrationPPR3::getConvergence(){return convergence_mul*surface_func->getNoise();}
 
-void MassRegistrationPPR3::show(std::vector<Eigen::Matrix4d> poses, bool stop){
+void MassRegistrationPPR3::show(std::vector<Eigen::Matrix4d> poses, bool stop, std::string path){
 	//timer.start("show");
 
     viewer->removeAllPointClouds();
+    viewer->removeAllShapes();
     char buf [1024];
     for(unsigned int i = 0; i < nodes.size(); i++){
 
@@ -701,6 +702,10 @@ void MassRegistrationPPR3::show(std::vector<Eigen::Matrix4d> poses, bool stop){
     }
     if(stop){    viewer->spin();}
     else{        viewer->spinOnce();}
+    if(path.length() > 0){
+        printf("saving to %s\n",path.c_str());
+        viewer->saveScreenshot(path);
+    }
 }
 
 void MassRegistrationPPR3::addModel(Model * model){
@@ -1151,7 +1156,7 @@ MassFusionResults MassRegistrationPPR3::getTransforms(std::vector<Eigen::Matrix4
             //if(next_regularizer < 0){
                 long sum_surface_rematches = 0;
                 for(unsigned int i = 0; i < edges.size(); i++){
-                    for(unsigned int j = 0; j < edges[i].size(); j++){
+                    for(unsigned int j = i+1; j < edges[i].size(); j++){
                         if(edges[i][j] != 0){
                             sum_surface_rematches += edges[i][j]->surface_match1.size();
                         }
@@ -1161,7 +1166,8 @@ MassFusionResults MassRegistrationPPR3::getTransforms(std::vector<Eigen::Matrix4
                 double * surfaceResiduals = new double[sum_surface_rematches];
                 unsigned long surfaceCounter = 0;
                 for(unsigned int i = 0; i < edges.size(); i++){
-                    for(unsigned int j = 0; j < edges[i].size(); j++){
+                    //for(unsigned int j = i+1; j < edges[i].size(); j++){
+                    for(unsigned int j = 0; j < i; j++){
                         if(edges[i][j] != 0){
                             Eigen::Matrix4d p = poses[j].inverse()*poses[i];
                             edges[i][j]->computeSurfaceResiduals(p,surfaceResiduals,surfaceCounter);
@@ -1170,6 +1176,7 @@ MassFusionResults MassRegistrationPPR3::getTransforms(std::vector<Eigen::Matrix4
                 }
 
                 double sumval = 0;
+                sum_surface_rematches = std::min(sum_surface_rematches,long(1000));
                 for(unsigned int i = 0; i < sum_surface_rematches; i++){
                     sumval += surfaceResiduals[i]*surfaceResiduals[i];
                 }
@@ -1179,7 +1186,38 @@ MassFusionResults MassRegistrationPPR3::getTransforms(std::vector<Eigen::Matrix4
                 next_regularizer = sumval;
             //}
             surface_func->regularization = next_regularizer;
-            //printf("sumval: %5.5f next_regularizer: %5.5f\n",sumval, next_regularizer);
+            printf("sumval: %5.5f next_regularizer: %5.5f\n",sumval, next_regularizer);
+
+
+//            long sum_surface_rematches2 = 0;
+//            for(unsigned int i = 0; i < edges.size(); i++){
+//                for(unsigned int j = 0; j < i; j++){
+//                    if(edges[i][j] != 0){
+//                        sum_surface_rematches2 += edges[i][j]->surface_match1.size();
+//                    }
+//                }
+//            }
+
+//            double * surfaceResiduals2 = new double[sum_surface_rematches2];
+//            unsigned long surfaceCounter2 = 0;
+//            for(unsigned int i = 0; i < edges.size(); i++){
+//                for(unsigned int j = 0; j < i; j++){
+//                    if(edges[i][j] != 0){
+//                        Eigen::Matrix4d p = poses[j].inverse()*poses[i];
+//                        edges[i][j]->computeSurfaceResiduals(p,surfaceResiduals2,surfaceCounter2);
+//                    }
+//                }
+//            }
+
+//            double sumval2 = 0;
+//            int stopnr = std::min(int(sum_surface_rematches2),1000);
+//            for(unsigned int i = 0; i < stopnr; i++){
+//                sumval2 += surfaceResiduals2[i]*surfaceResiduals2[i];
+//            }
+//            sumval2 = sqrt(sumval2/double(stopnr-1));
+//            delete[] surfaceResiduals2;
+
+//            printf("sumval2: %5.5f next_regularizer: %5.5f\n",sumval2, next_regularizer);
         }
     }
 
@@ -1199,8 +1237,20 @@ MassFusionResults MassRegistrationPPR3::getTransforms(std::vector<Eigen::Matrix4
 
     std::vector<Eigen::Matrix4d> prev = poses;
 
+//    char buf [1024];
+//    sprintf(buf,"%s/map4_%4.4i.png",savePath.c_str(),i);
+//    std::string filename = std::string(buf);
+//    //std::string filename = savePath+"/map3_"+std::to_string(i)+".png";
+//    printf("saving: %s\n",filename.c_str());
+//    viewer->saveScreenshot(filename);
+    if(savePath.length() > 0){
+        show(poses,true);
+    }
+
+    int count = 0;
+
     bool tuned = false;
-    for(int func = 0; func < 20; func++){
+    for(int func = 0; func < 30; func++){
 
 		if(visualizationLvl == 2){
             printf("func: %i \n",func);
@@ -1211,10 +1261,18 @@ MassFusionResults MassRegistrationPPR3::getTransforms(std::vector<Eigen::Matrix4
             //printf("func: %i i:%i noise: %10.10f reg: %10.10f\n",func,i,surface_func->getNoise(),surface_func->regularization);
 			if(visualizationLvl == 2){
 				printf("func: %i i:%i \n",func,i);
+                show(poses,true);
 			}
             rematch(poses,  false,func == 2);
             model(poses,    false,func == 2);
 
+            if(savePath.length() > 0){
+                char buf [1024];
+                for(int it = 0; it < 10; it++){
+                    sprintf(buf,"%s/reg_%4.4i.png",savePath.c_str(),count++);
+                    show(poses,false,std::string(buf));
+                }
+            }
 
             refine(poses,    true,func == 2);
 
@@ -1349,6 +1407,10 @@ MassFusionResults MassRegistrationPPR3::getTransforms(std::vector<Eigen::Matrix4
         if(not_converged == 0){break;}
     }
 
+
+    if(savePath.length() > 0){
+        show(poses,true);
+    }
 
     if(tune_regularizer){
         if(func_setup == 0){

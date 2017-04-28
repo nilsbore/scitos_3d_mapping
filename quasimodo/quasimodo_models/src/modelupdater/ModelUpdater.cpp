@@ -30,7 +30,7 @@ int setupPriors(int method,float current_occlusions, float current_overlaps, flo
 	prior_dynamic   = 0.0;
 	prior_static    = 0.0;
 
-    method = 5;
+    method = 6;
     prior_static = prior_dynamic = prior_moving = 1.0/3.0;
     foreground_weight = -log(0.5);
     background_weight = -log(0.5);
@@ -278,6 +278,45 @@ int setupPriors(int method,float current_occlusions, float current_overlaps, flo
 //            bg = minprob +bias + mul * (overlap     + leftover*0.5);
 //            printf("%f %f -> %f %f sum: %f\n",occlusion,overlap, fg,bg,fg+bg);
         }
+    }
+
+    if(method == 6 && valid){
+        float p_obj_given_occlusion = 0.8;
+        float p_obj_given_overlap   = 0.30;
+        float p_obj_given_unknown   = 0.499;
+
+        float bg_p_O = bg_occlusions;
+        float bg_p_nO_S = (1-bg_p_O)*bg_overlaps;
+        float bg_p_U = 1-bg_p_O-bg_p_nO_S;
+        float bg_p_obj =
+                p_obj_given_occlusion*bg_p_O+//Oclusion contribution
+                p_obj_given_overlap  *bg_p_nO_S+//surface overlap contribution
+                p_obj_given_unknown  *bg_p_U;//Contribution of other cases
+        float bg_p_nobj = 1 - bg_p_obj;
+
+        //printf("%f %f -> %f %f %f -> %f\n",bg_occlusions,bg_overlaps,bg_p_O,bg_p_nO_S,bg_p_U,bg_p_obj);
+
+        float fg_p_O = current_occlusions;
+        float fg_p_nO_S = (1-fg_p_O)*current_overlaps;
+        float fg_p_U = 1-fg_p_O-fg_p_nO_S;
+        //printf("%f %f -> %f %f %f\n",)
+        float fg_p_obj =
+                p_obj_given_occlusion*fg_p_O+//Oclusion contribution
+                p_obj_given_overlap  *fg_p_nO_S+//surface overlap contribution
+                p_obj_given_unknown  *fg_p_U;//Contribution of other cases
+        float fg_p_nobj = 1 - fg_p_obj;
+
+
+        foreground_weight = -log(bg_p_obj);
+        background_weight = -log(bg_p_nobj);
+
+//        prior_moving  =  p_obj_given_occlusion*fg_p_O + p_obj_given_overlap  *fg_p_nO_S;//surface overlap contribution;
+//        prior_dynamic = std::max(p_obj_given_occlusion*bg_p_O+p_obj_given_overlap  *bg_p_nO_S-prior_moving,0.0f);
+//        prior_static  = 1-prior_moving-prior_dynamic;
+
+        prior_moving  = (    fg_p_obj)*bg_p_obj;//current_occlusions + current_leftover/3.0;
+        prior_dynamic = (1.0-fg_p_obj)*bg_p_obj;//bg_overlaps;//(1-prior_moving) * (dyn         + dyn_leftover/2.0);
+        prior_static  = 1-prior_moving-prior_dynamic;
     }
 	return 0;
 }
@@ -1149,14 +1188,14 @@ void ModelUpdater::addSuperPoints(vector<superpoint> & spvec, Matrix4d p, RGBDFr
 				float tny	= im10*src_nx + im11*src_ny + im12*src_nz;
 				float tnz	= im20*src_nx + im21*src_ny + im22*src_nz;
 
-				double d = fabs(tnx*(dst_x-tx) + tny*(dst_y-ty) + tnz*(dst_z-tz));
+                double d = fabs(tnx*(dst_x-tx) + tny*(dst_y-ty) + tnz*(dst_z-tz));
 
 				double compare_mul = sqrt(dst_noise*dst_noise + point_noise*point_noise);
 				d *= compare_mul;
 
 				double surface_angle = tnx*dst_nx+tny*dst_ny+tnz*dst_nz;
 
-				if(d < 0.01 && surface_angle > 0.5){//If close, according noises, and angle of the surfaces similar: FUSE
+                if(d < 0.005){// && surface_angle > 0.5){//If close, according noises, and angle of the surfaces similar: FUSE
 					float px	= m00*dst_x + m01*dst_y + m02*dst_z + m03;
 					float py	= m10*dst_x + m11*dst_y + m12*dst_z + m13;
 					float pz	= m20*dst_x + m21*dst_y + m22*dst_z + m23;
@@ -2653,7 +2692,7 @@ void ModelUpdater::getDynamicWeights(bool store_distance, std::vector<double> & 
 	startTime = getTime();
 
     //std::vector<ReprojectionResult> rr_vec	= frame2->getReprojections(framesp1,p,0,false);
-    std::vector<ReprojectionResult> rr_vec	= frame2->getReprojections(framesp1,p,0,false,false);
+	std::vector<ReprojectionResult> rr_vec	= frame2->getReprojections(framesp1,p,0,false,true);
 	inlierratio = double(rr_vec.size())/double(framesp1.size());
 	unsigned long nr_rr = rr_vec.size();
 
@@ -2688,7 +2727,8 @@ void ModelUpdater::getDynamicWeights(bool store_distance, std::vector<double> & 
 		double dst_variance = 1.0/dst_p.point_information;
 		double total_variance = src_variance+dst_variance;
 		double total_stdiv = sqrt(total_variance);
-		double d = rr.residualZ/total_stdiv;
+		double rz = rr.residualZ;
+		double d = rz/total_stdiv;
 		double surface_angle = rr.angle;
 		if(store_distance){
 			dvec.push_back(d);
@@ -2697,9 +2737,9 @@ void ModelUpdater::getDynamicWeights(bool store_distance, std::vector<double> & 
 			double dE2 = rr.residualE2/total_stdiv;
 			double p_overlap_angle = nfunc->getProb(1-surface_angle);
             double p_overlap = dfunc->getProb(d);
-            //double p_occlusion = dfunc->getProbInfront(d);//std::max(1 - 1e-6,std::max(1e-6,dfunc->getProbInfront(d)));
-            double p_occlusion = dfunc->getProbInfront(d,dst_p.z);//std::max(1 - 1e-6,std::max(1e-6,dfunc->getProbInfront(d)));
-
+			double p_occlusion = dfunc->getProbInfront(d);//std::max(1 - 1e-6,std::max(1e-6,dfunc->getProbInfront(d)));
+//			dfunc->getProbInfront(d,dst_p.z);
+//			double p_occlusion = dfunc->getProbInfront(d,src_p.z/total_stdiv);//std::max(1 - 1e-6,std::max(1e-6,dfunc->getProbInfront(d)));
 
 
             //p_occlusion += p_overlap*(1-p_overlap_angle);
@@ -2719,12 +2759,13 @@ void ModelUpdater::getDynamicWeights(bool store_distance, std::vector<double> & 
 
 			if(dst_detdata[dst_ind] != 0){continue;}
 			if(src_detdata[src_ind] != 0){continue;}
+			//double p2pd = 0;
 
-			double olp = overlaps[src_ind];
-			double nolp = 1-olp;
-			nolp *= (1-p_overlap);
+			//double olp = overlaps[src_ind];
+			//double nolp = 1-olp;
+			//nolp *= (1-p_overlap);
 
-			overlaps[src_ind] = std::min(0.999999999,1-nolp);
+			//overlaps[src_ind] = std::min(0.999999999,1-nolp);
 
             //double p_behind = p_overlap+p_occlusion;//1-p_overlap-p_occlusion;
             //double weight = p_overlap+p_occlusion;//1.0;
@@ -2733,12 +2774,19 @@ void ModelUpdater::getDynamicWeights(bool store_distance, std::vector<double> & 
 
 
 
-            double ocl = occlusions[src_ind];
-            double nocl = 1-ocl;
-            nocl *= (1-p_occlusion);
+			//double ocl = occlusions[src_ind];
+			//double nocl = 1-ocl;
 
-            occlusions[src_ind] = std::min(0.999999999,1-nocl);
-            notocclusions[src_ind] = 1;
+
+
+			//nocl *= (1-p_occlusion);
+
+			//occlusions[src_ind] = std::min(0.999999999,1-nocl);
+
+			overlaps[src_ind]   *= 1-p_overlap;
+			occlusions[src_ind] *= 1-p_occlusion;
+			notocclusions[src_ind] *= 1-p_overlap-p_occlusion;
+			//notocclusions[src_ind] = 1;
 		}
 	}
 	currentString = "part4";
@@ -2783,7 +2831,18 @@ void ModelUpdater::getDynamicWeights(bool store_distance, std::vector<double> & 
 	}
 }
 
+double kld( Eigen::VectorXd mean0, Eigen::MatrixXd cov0, Eigen::VectorXd mean1, Eigen::MatrixXd cov1){
+    double tr = (cov1.inverse()*cov0).trace();
+    double det0 = cov0.determinant();
+    double det1 = cov1.determinant();
 
+
+    return 0.5*(tr + (mean1-mean0).transpose()*cov1.inverse()*(mean1-mean0) + log(det1/det0));
+}
+
+double shannonJensen( Eigen::VectorXd mean1, Eigen::MatrixXd cov1, Eigen::VectorXd mean2, Eigen::MatrixXd cov2 ){
+    return kld(mean1,cov1,mean2,cov2)+kld(mean2,cov2,mean1,cov1);
+}
 
 void ModelUpdater::computeMovingDynamicStatic(std::vector<cv::Mat> & movemask, std::vector<cv::Mat> & dynmask, vector<Matrix4d> bgcp, vector<RGBDFrame*> bgcf, vector<Matrix4d> poses, vector<RGBDFrame*> frames, bool debugg, std::string savePath){
 	static int segment_run_counter = -1;
@@ -2883,11 +2942,11 @@ void ModelUpdater::computeMovingDynamicStatic(std::vector<cv::Mat> & movemask, s
     //GeneralizedGaussianDistribution * dggdnfunc	= new GeneralizedGaussianDistribution(true,true,false,true,true);
     //dggdnfunc->nr_refineiters					= 4;
 
-    GeneralizedGaussianDistribution * dggdnfunc	= new GeneralizedGaussianDistribution(true,false,false);
-    dggdnfunc->nr_refineiters					= 1;
+    GeneralizedGaussianDistribution * dggdnfunc	= new GeneralizedGaussianDistribution(true,true,false);
+    dggdnfunc->nr_refineiters					= 4;
     DistanceWeightFunction2PPR3 * dfuncTMP		= new DistanceWeightFunction2PPR3(dggdnfunc,0.1,1000);
 	dfunc = dfuncTMP;
-	dfuncTMP->startreg				= 0.00;
+	dfuncTMP->startreg				= 0.000;
 	dfuncTMP->max_under_mean		= false;
     dfuncTMP->debugg_print			= false;
 	dfuncTMP->bidir					= true;
@@ -2916,7 +2975,7 @@ void ModelUpdater::computeMovingDynamicStatic(std::vector<cv::Mat> & movemask, s
 	DistanceWeightFunction2PPR3 * nfuncTMP		= new DistanceWeightFunction2PPR3(ggdnfunc);
 	nfunc = nfuncTMP;
     nfuncTMP->startreg				= 0.0;
-    nfuncTMP->debugg_print			= true;
+    nfuncTMP->debugg_print			= false;
 	nfuncTMP->bidir					= false;
 	nfuncTMP->zeromean				= true;
 	nfuncTMP->maxp					= 0.9999;
@@ -2981,41 +3040,84 @@ void ModelUpdater::computeMovingDynamicStatic(std::vector<cv::Mat> & movemask, s
 		double * current_occlusions		= new double[nr_pixels];
 		double * current_notocclusions		= new double[nr_pixels];
 		for(unsigned int j = 0; j < nr_pixels; j++){
-			current_overlaps[j] = 0;
-			current_occlusions[j] = 0.0;
-			current_notocclusions[j] = 0.0;
+			current_overlaps[j] = 1.0;
+			current_occlusions[j] = 1.0;
+			current_notocclusions[j] = 1.0;
 		}
 
 		double * bg_overlaps			= new double[nr_pixels];
 		double * bg_occlusions			= new double[nr_pixels];
 		double * bg_notocclusions		= new double[nr_pixels];
 		for(unsigned int j = 0; j < nr_pixels; j++){
-			bg_overlaps[j]	= 0;
-			bg_occlusions[j] = 0.0;
-			bg_notocclusions[j] = 0.0;
+			bg_overlaps[j]	= 1.0;
+			bg_occlusions[j] = 1.0;
+			bg_notocclusions[j] = 1.0;
 		}
 		total_alloctime += getTime()-startTime;
+
 
 		startTime = getTime();
 		for(unsigned int j = 0; j < frames.size(); j++){
 			if(i == j){continue;}
+
 			Eigen::Matrix4d p = poses[i].inverse() * poses[j];
 			getDynamicWeights(false,dvec,nvec,dfunc,nfunc,p.inverse(),frames[i],framesp_test[i],framesp[i], current_overlaps, current_occlusions, current_notocclusions, frames[j],framesp[j],offsets[i],offsets[j],interframe_connectionId,interframe_connectionStrength,false);
 		}
 
+
 		for(unsigned int j = 0; j < bgcf.size(); j++){
 			Eigen::Matrix4d p = poses[i].inverse() * bgcp[j];
+
 			getDynamicWeights(false,dvec,nvec,dfunc,nfunc,p.inverse(),frames[i],framesp_test[i],framesp[i], bg_overlaps, bg_occlusions, bg_notocclusions, bgcf[j],bgsp[j],-1,-1,interframe_connectionId,interframe_connectionStrength,false);
 		}
 
+//		printf("-----\n");
+//		printf("BEFORE\n");
+//		printf("bg_occlusion:      %6.6f bg_notocclusion:      %6.6f\n",bg_occlusions[ptind],bg_notocclusions[ptind]);
+//		printf("current_occlusion: %6.6f current_notocclusion: %6.6f\n",current_occlusions[ptind],current_notocclusions[ptind]);
+
+//		for(unsigned int j = 0; j < nr_pixels; j++){
+//			bg_occlusions[j]		= std::min(0.99999,bg_occlusions[j]/std::max(1.0,bg_notocclusions[j]));
+//			current_occlusions[j]	= std::min(0.99999,current_occlusions[j]/std::max(1.0,current_notocclusions[j]));
+//		}
+
 		for(unsigned int j = 0; j < nr_pixels; j++){
-			bg_occlusions[j]		= std::min(0.99999,bg_occlusions[j]/std::max(1.0,bg_notocclusions[j]));
-			current_occlusions[j]	= std::min(0.99999,current_occlusions[j]/std::max(1.0,current_notocclusions[j]));
+			//bg_notocclusions[j]			= 1.0-bg_notocclusions[j];
+			//current_notocclusions[j]	= 1.0-current_notocclusions[j];
+
+			bg_occlusions[j]		= std::min(0.99999,1-bg_occlusions[j]);
+			bg_overlaps[j]			= std::min(0.99999,1-bg_overlaps[j]);
+
+			current_occlusions[j]	= std::min(0.99999,1-current_occlusions[j]);
+			current_overlaps[j]		= std::min(0.99999,1-current_overlaps[j]);
+
+
+			//if(current_notocclusions[j] == 1){
+			//	current_occlusions[j]		= std::min(0.99999,1-current_occlusions[j]);
+			//	current_overlaps[j]			= std::min(0.99999,1-current_overlaps[j]);
+			//}else{
+			//	current_occlusions[j]		= 0.5;
+			//	current_overlaps[j]			= 0.5;
+			//}
+
+//			if(bg_notocclusions[j] == 1){
+//				bg_occlusions[j]		= std::min(0.99999,1-bg_occlusions[j]);
+//				bg_overlaps[j]			= std::min(0.99999,1-bg_overlaps[j]);
+//			}else{
+//				bg_occlusions[j]		= 0.5;
+//				bg_overlaps[j]			= 0.5;
+//			}
+
+//			if(current_notocclusions[j] == 1){
+//				current_occlusions[j]		= std::min(0.99999,1-current_occlusions[j]);
+//				current_overlaps[j]			= std::min(0.99999,1-current_overlaps[j]);
+//			}else{
+//				current_occlusions[j]		= 0.5;
+//				current_overlaps[j]			= 0.5;
+//			}
 		}
 
 		total_Dynw += getTime()-startTime;
-
-
 
 		startTime = getTime();
 		unsigned char * detdata = (unsigned char*)(frame->det_dilate.data);
@@ -3095,6 +3197,7 @@ void ModelUpdater::computeMovingDynamicStatic(std::vector<cv::Mat> & movemask, s
 		//		cv::waitKey(0);
 
 
+
 		if(savePath.size() != 0){
 			cv::Mat edgeimg;
 			edgeimg.create(height,width,CV_8UC3);
@@ -3160,15 +3263,46 @@ void ModelUpdater::computeMovingDynamicStatic(std::vector<cv::Mat> & movemask, s
 				bg_occlusionsdata[3*ind+1]			= 255.0*bg_occlusions[ind];
 				bg_occlusionsdata[3*ind+2]			= 255.0*bg_occlusions[ind];
 			}
+			if(debugg){
 
-			cv::imwrite( savePath+"/segment_"+std::to_string(segment_run_counter)+"_frame_"+std::to_string(i)+"_current_overlapsimg.png", current_overlapsimg );
-			cv::imwrite( savePath+"/segment_"+std::to_string(segment_run_counter)+"_frame_"+std::to_string(i)+"_bg_overlapsimg.png", bg_overlapsimg );
-			cv::imwrite( savePath+"/segment_"+std::to_string(segment_run_counter)+"_frame_"+std::to_string(i)+"_current_occlusionsimg.png", current_occlusionsimg );
-			cv::imwrite( savePath+"/segment_"+std::to_string(segment_run_counter)+"_frame_"+std::to_string(i)+"_bg_occlusionsimg.png", bg_occlusionsimg );
-			cv::imwrite( savePath+"/segment_"+std::to_string(segment_run_counter)+"_frame_"+std::to_string(i)+"_edgeimg.png", edgeimg );
-			cv::imwrite( savePath+"/segment_"+std::to_string(segment_run_counter)+"_frame_"+std::to_string(i)+"_rgb.png", frame->rgb  );
-			cv::imwrite( savePath+"/segment_"+std::to_string(segment_run_counter)+"_frame_"+std::to_string(i)+"_priors.png", priorsimg );
-			cv::imwrite( savePath+"/segment_"+std::to_string(segment_run_counter)+"_frame_"+std::to_string(i)+"_labelimg.png", labelimg );
+
+
+
+//				cv::line(current_overlapsimg, cv::Point(ptw-20,pth), cv::Point(ptw+20,pth), cv::Scalar(255,0,255),3);
+//				cv::line(current_overlapsimg, cv::Point(ptw,pth-20), cv::Point(ptw,pth+20), cv::Scalar(255,0,255),3);
+
+//				cv::line(bg_overlapsimg, cv::Point(ptw-20,pth), cv::Point(ptw+20,pth), cv::Scalar(255,0,255),3);
+//				cv::line(bg_overlapsimg, cv::Point(ptw,pth-20), cv::Point(ptw,pth+20), cv::Scalar(255,0,255),3);
+
+//				cv::line(current_occlusionsimg, cv::Point(ptw-20,pth), cv::Point(ptw+20,pth), cv::Scalar(255,0,255),3);
+//				cv::line(current_occlusionsimg, cv::Point(ptw,pth-20), cv::Point(ptw,pth+20), cv::Scalar(255,0,255),3);
+
+//				cv::line(bg_occlusionsimg, cv::Point(ptw-20,pth), cv::Point(ptw+20,pth), cv::Scalar(255,0,255),3);
+//				cv::line(bg_occlusionsimg, cv::Point(ptw,pth-20), cv::Point(ptw,pth+20), cv::Scalar(255,0,255),3);
+
+				cv::imshow( "current_overlapsimg.png", current_overlapsimg );
+				cv::imshow( "bg_overlapsimg.png", bg_overlapsimg );
+				cv::imshow( "current_occlusionsimg.png", current_occlusionsimg );
+				cv::imshow( "bg_occlusionsimg.png", bg_occlusionsimg );
+
+
+				cv::namedWindow( "edgeimg"		, cv::WINDOW_AUTOSIZE );		cv::imshow( "edgeimg",		edgeimg );
+				cv::namedWindow( "rgb"			, cv::WINDOW_AUTOSIZE );		cv::imshow( "rgb",			frame->rgb );
+				cv::namedWindow( "depth"		, cv::WINDOW_AUTOSIZE );		cv::imshow( "depth",		frame->depth );
+				cv::namedWindow( "priors"		, cv::WINDOW_AUTOSIZE );		cv::imshow( "priors",		priorsimg );
+				cv::namedWindow( "labelimg"		, cv::WINDOW_AUTOSIZE );		cv::imshow( "labelimg",		labelimg );
+				cv::waitKey(0);
+			}
+			if(savePath.size() != 0){
+				cv::imwrite( savePath+"/segment_"+std::to_string(segment_run_counter)+"_frame_"+std::to_string(i)+"_current_overlapsimg.png", current_overlapsimg );
+				cv::imwrite( savePath+"/segment_"+std::to_string(segment_run_counter)+"_frame_"+std::to_string(i)+"_bg_overlapsimg.png", bg_overlapsimg );
+				cv::imwrite( savePath+"/segment_"+std::to_string(segment_run_counter)+"_frame_"+std::to_string(i)+"_current_occlusionsimg.png", current_occlusionsimg );
+				cv::imwrite( savePath+"/segment_"+std::to_string(segment_run_counter)+"_frame_"+std::to_string(i)+"_bg_occlusionsimg.png", bg_occlusionsimg );
+				cv::imwrite( savePath+"/segment_"+std::to_string(segment_run_counter)+"_frame_"+std::to_string(i)+"_edgeimg.png", edgeimg );
+				cv::imwrite( savePath+"/segment_"+std::to_string(segment_run_counter)+"_frame_"+std::to_string(i)+"_rgb.png", frame->rgb  );
+				cv::imwrite( savePath+"/segment_"+std::to_string(segment_run_counter)+"_frame_"+std::to_string(i)+"_priors.png", priorsimg );
+				cv::imwrite( savePath+"/segment_"+std::to_string(segment_run_counter)+"_frame_"+std::to_string(i)+"_labelimg.png", labelimg );
+			}
 		}
 		delete g;
 
@@ -3383,8 +3517,8 @@ void ModelUpdater::computeMovingDynamicStatic(std::vector<cv::Mat> & movemask, s
 			std::vector< unsigned long > todo;
 			todo.push_back(ind);
 
-			double score0 = 0;
-			double score1 = 0;
+            double score0 = 0;//dynamic
+            double score1 = 0;//Moving
 
 			double pscore0 = 0;
 			double pscore1 = 0;
@@ -3407,6 +3541,9 @@ void ModelUpdater::computeMovingDynamicStatic(std::vector<cv::Mat> & movemask, s
 				double p2 = priors[3*cind+2];
 
 				if(valids[cind]){
+                    if(p0 > p1){score0 += p0 - p1;}//Probably moving
+                    else{       score1 += p1 - p0;}//Probably dynamic
+/*
 					double s0 = 0;
 					if(p1 > p2){s0 += p0 - p1;}
 					else{       s0 += p0 - p2;}
@@ -3422,7 +3559,10 @@ void ModelUpdater::computeMovingDynamicStatic(std::vector<cv::Mat> & movemask, s
 
 					if(s1 > 0){	pscore1 += s1;}
 					else{		nscore1 += s1;}
-					totsum++;
+
+                    printf("Moving: %4.4f Dynamic: %4.4f Static: %4.4f -> pscore0 %4.4f nscore0 %4.4f pscore1 %4.4f nscore1 %4.4f\n",p0,p1,p2,pscore0,nscore0,pscore1,nscore1);
+*/
+                    totsum++;
 				}
 
 				float * dedata = (float*)(frames[frameind]->de.data);
@@ -3463,8 +3603,8 @@ void ModelUpdater::computeMovingDynamicStatic(std::vector<cv::Mat> & movemask, s
 				}
 			}
 
-			score0 = pscore0+nscore0;
-			score1 = pscore1+nscore1;
+//			score0 = pscore0+nscore0;
+//			score1 = pscore1+nscore1;
 
 
 			labelID.push_back(0);
@@ -3480,6 +3620,8 @@ void ModelUpdater::computeMovingDynamicStatic(std::vector<cv::Mat> & movemask, s
 			}
 
 			if(std::max(score0,score1) < 100){continue;}
+
+            score0 *= 2.0;
 
 			if(score1 > score0){
 				labelID.back() = ++nr_obj_dyn;
@@ -3549,6 +3691,122 @@ void ModelUpdater::computeMovingDynamicStatic(std::vector<cv::Mat> & movemask, s
 		dynmask.push_back(d);
 	}
 
+//    std::vector< Eigen::VectorXd > means;
+//    std::vector< Eigen::VectorXd > features;
+//    std::vector< Eigen::MatrixXd > covs;
+
+//    int bins = 5;
+//    for(unsigned int c = 0; c < sr.component_dynamic.size(); c++){
+//        printf("%i/%i\n",c+1,sr.component_dynamic.size());
+//        int dim = 3;
+//        double step = 256.0/double(bins);
+//        Eigen::VectorXd feature (bins*bins*bins);
+//        Eigen::VectorXd mean (dim);
+//        Eigen::MatrixXd cov (dim,dim);
+
+//        for(unsigned int i = 0; i < bins*bins*bins; i++){
+//            feature(i) = 0;
+//        }
+//        for(unsigned int i = 0; i < dim; i++){
+//            mean(i) = 0;
+//            for(unsigned int j = 0; j < dim; j++){
+//                cov(i,j) = 0;
+//            }
+//        }
+
+//        double sum = 0;
+//        for(unsigned int i = 0; i < sr.component_dynamic[c].size(); i++){
+//            pcl::PointXYZRGBNormal p = cloud->points[sr.component_dynamic[c][i]];
+
+//            int ind = int(p.r/step) + int(p.g/step)*bins + int(p.b/step)*bins*bins;
+
+//            //printf("%i %i %i -> %i %i %i -> %i\n",int(p.r),int(p.g), int(p.b),int(p.r/step),int(p.g/step),int(p.b/step),ind);
+//            feature(ind) ++;
+//            mean(0) += p.x;
+//            mean(1) += p.y;
+//            mean(2) += p.z;
+////            mean(3) += p.r;
+////            mean(4) += p.g;
+////            mean(5) += p.b;
+//            sum     += 1.0;
+//        }
+//        feature /= double(sr.component_dynamic[c].size());
+
+//        for(unsigned int i = 0; i < dim; i++){ mean(i) /= sum; }
+
+//        std::cout << mean << std::endl << std::endl;
+
+//        std::vector<double> diff;
+//        diff.resize(dim);
+//        for(unsigned int i = 0; i < sr.component_dynamic[c].size(); i++){
+//            pcl::PointXYZRGBNormal p = cloud->points[sr.component_dynamic[c][i]];
+//            diff[0] = mean(0) - p.x;
+//            diff[1] = mean(1) - p.y;
+//            diff[2] = mean(2) - p.z;
+////            diff[3] = mean(3) - p.r;
+////            diff[4] = mean(4) - p.g;
+////            diff[5] = mean(5) - p.b;
+//            for(unsigned int j = 0; j < dim; j++){
+//                for(unsigned int k = 0; k < dim; k++){
+//                    cov(j,k) += diff[j]*diff[k];
+//                }
+//            }
+//        }
+
+//        for(unsigned int j = 0; j < dim; j++){
+//            for(unsigned int k = 0; k < dim; k++){
+//                cov(j,k) /= sum;
+//            }
+//        }
+//        std::cout << cov << std::endl << std::endl;
+//        means.push_back(mean);
+//        covs.push_back(cov);
+//        features.push_back(feature);
+//    }
+
+
+//    for(unsigned int i = 0; i < sr.component_dynamic.size(); i++){
+//        for(unsigned int j = i+1; j < sr.component_dynamic.size(); j++){
+//            printf("doing %i %i\n",i,j);
+//            double d = shannonJensen(means[i],covs[i],means[j],covs[j]);
+
+//            Eigen::VectorXd v1 = features[i];
+//            Eigen::VectorXd v2 = features[j];
+//            double fd = 0;
+//            for(unsigned int i = 0; i < bins*bins*bins; i++){
+//                fd += fabs(v1(i)-v2(i));
+//                //printf("%i -> %5.5f %5.5f -> %5.5f\n",i,v1(i),v2(i),fabs(v1(i)-v2(i)));
+//            }
+
+//            //double fd = (features[i]-features[j]).abs().sum();
+//            printf("%i %i -> d: %5.5f feature: %15.15f\n",i,j,d,fd);
+
+//            //if(d > 1000 && fd > 1){continue;}
+
+//            pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr cloud_sample (new pcl::PointCloud<pcl::PointXYZRGBNormal>);
+
+//            for(unsigned int k = 0; k < sr.component_dynamic[i].size(); k++){
+//                pcl::PointXYZRGBNormal p = cloud->points[sr.component_dynamic[i][k]];
+////                p.r = 0;
+////                p.g = 255;
+////                p.b = 0;
+//                cloud_sample->points.push_back(p);
+//            }
+
+//            for(unsigned int k = 0; k < sr.component_dynamic[j].size(); k++){
+//                pcl::PointXYZRGBNormal p = cloud->points[sr.component_dynamic[j][k]];
+////                p.r = 0;
+////                p.g = 0;
+////                p.b = 255;
+//                cloud_sample->points.push_back(p);
+//            }
+
+//            viewer->removeAllPointClouds();
+//            viewer->addPointCloud<pcl::PointXYZRGBNormal> (cloud_sample, pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGBNormal>(cloud_sample), "cloud");
+//            viewer->spin();
+//        }
+//    }
+
 	if(savePath.size() != 0){
 		pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr cloud_sample (new pcl::PointCloud<pcl::PointXYZRGBNormal>);
 		cloud_sample->points.resize(current_point);
@@ -3560,7 +3818,9 @@ void ModelUpdater::computeMovingDynamicStatic(std::vector<cv::Mat> & movemask, s
 			cloud_sample->points[i].g = priors[3*i+1]*255.0;
 			cloud_sample->points[i].b = priors[3*i+2]*255.0;
 		}
-		pcl::io::savePCDFileBinaryCompressed (savePath+"/segment_"+std::to_string(segment_run_counter)+"_priors.pcd", *cloud_sample);
+        if(cloud_sample->points.size()){
+            pcl::io::savePCDFileBinaryCompressed (savePath+"/segment_"+std::to_string(segment_run_counter)+"_priors.pcd", *cloud_sample);
+        }
 
 		for(unsigned int i = 0; i < current_point; i++){
 			cloud_sample->points[i].r = 0;
@@ -3583,7 +3843,10 @@ void ModelUpdater::computeMovingDynamicStatic(std::vector<cv::Mat> & movemask, s
 				cloud_sample->points[sr.component_moving[c][i]].b = 0;
 			}
 		}
-		pcl::io::savePCDFileBinaryCompressed (savePath+"/segment_"+std::to_string(segment_run_counter)+"_classes.pcd", *cloud_sample);
+
+        if(cloud_sample->points.size()){
+            pcl::io::savePCDFileBinaryCompressed (savePath+"/segment_"+std::to_string(segment_run_counter)+"_classes.pcd", *cloud_sample);
+        }
 
 		for(unsigned int i = 0; i < current_point; i++){
 			cloud_sample->points[i].r = 0;
@@ -3614,11 +3877,17 @@ void ModelUpdater::computeMovingDynamicStatic(std::vector<cv::Mat> & movemask, s
 				cloud_sample->points[sr.component_moving[c][i]].b = randb;
 			}
 		}
-		pcl::io::savePCDFileBinaryCompressed (savePath+"/segment_"+std::to_string(segment_run_counter)+"_clusters.pcd", *cloud_sample);
+
+        if(cloud_sample->points.size()){
+            pcl::io::savePCDFileBinaryCompressed (savePath+"/segment_"+std::to_string(segment_run_counter)+"_clusters.pcd", *cloud_sample);
+        }
 
 		cloud->width = cloud->points.size();
 		cloud->height = 1;
-		pcl::io::savePCDFileBinaryCompressed (savePath+"/segment_"+std::to_string(segment_run_counter)+"_full.pcd", *cloud);
+
+        if(cloud->points.size()){
+            pcl::io::savePCDFileBinaryCompressed (savePath+"/segment_"+std::to_string(segment_run_counter)+"_full.pcd", *cloud);
+        }
 
 		cloud_sample->points.resize(0);
 		for(unsigned int c = 0; c < sr.component_dynamic.size(); c++){
@@ -3628,17 +3897,15 @@ void ModelUpdater::computeMovingDynamicStatic(std::vector<cv::Mat> & movemask, s
 		}
 		cloud_sample->width = cloud_sample->points.size();
 		cloud_sample->height = 1;
-		pcl::io::savePCDFileBinaryCompressed (savePath+"/segment_"+std::to_string(segment_run_counter)+"_dynamicobjects.pcd", *cloud_sample);
+
+        if(cloud_sample->points.size()){
+            pcl::io::savePCDFileBinaryCompressed (savePath+"/segment_"+std::to_string(segment_run_counter)+"_dynamicobjects.pcd", *cloud_sample);
+        }
 	}
 
 
 	printf("computeMovingDynamicStatic total time: %5.5fs\n",getTime()-computeMovingDynamicStatic_startTime);
 	if(debugg){
-
-		viewer->removeAllPointClouds();
-		viewer->addPointCloud<pcl::PointXYZRGBNormal> (cloud, pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGBNormal>(cloud), "cloud");
-		viewer->spin();
-
 		pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr cloud_sample (new pcl::PointCloud<pcl::PointXYZRGBNormal>);
 
 		for(unsigned int i = 0; i < current_point; i++){
@@ -3649,7 +3916,7 @@ void ModelUpdater::computeMovingDynamicStatic(std::vector<cv::Mat> & movemask, s
 
 		cloud_sample->points.clear();
 		for(unsigned int i = 0; i < current_point; i++){
-			if(rand() % 1 == 0){
+			if(rand() % 4 == 0){
 				cloud_sample->points.push_back(cloud->points[i]);
 			}
 		}
@@ -3659,24 +3926,24 @@ void ModelUpdater::computeMovingDynamicStatic(std::vector<cv::Mat> & movemask, s
 
 		cloud_sample->points.clear();
 		for(unsigned int i = 0; i < current_point; i++){
-			if(rand() % 1 == 0){
+			if(rand() % 4 == 0){
 
 				double p_fg = exp(-prior_weights[2*i+0]);
 
 				cloud_sample->points.push_back(cloud->points[i]);
-				cloud_sample->points.back().r = (1-p_fg)*255.0;//(priors[3*i+0]+priors[3*i+2])*255.0;
+				cloud_sample->points.back().r = p_fg*255.0;//(priors[3*i+0]+priors[3*i+2])*255.0;
 				cloud_sample->points.back().g = p_fg*255.0;
-				cloud_sample->points.back().b = 0*255.0;//;
+				cloud_sample->points.back().b = p_fg*255.0;//;
 			}
 		}
 		viewer->removeAllPointClouds();
 		viewer->addPointCloud<pcl::PointXYZRGBNormal> (cloud_sample, pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGBNormal>(cloud_sample), "cloud");
 		viewer->spin();
 
-for(int omg = 0; omg < 100; omg++){
+
 		cloud_sample->points.clear();
 		for(unsigned int i = 0; i < current_point; i++){
-			if(rand() % 1 == 0 && labels[i] == 0){
+			if(rand() % 4 == 0 && labels[i] == 0){
 				cloud_sample->points.push_back(cloud->points[i]);
 				cloud_sample->points.back().r = 0;
 				cloud_sample->points.back().g = 0;
@@ -3710,7 +3977,7 @@ for(int omg = 0; omg < 100; omg++){
 		viewer->removeAllPointClouds();
 		viewer->addPointCloud<pcl::PointXYZRGBNormal> (cloud_sample, pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGBNormal>(cloud_sample), "cloud");
 		viewer->spin();
-}
+
 		cloud_sample->points.clear();
 		for(unsigned int i = 0; i < current_point; i++){
 			if(rand() % 1 == 0){
@@ -3721,7 +3988,6 @@ for(int omg = 0; omg < 100; omg++){
 		viewer->addPointCloud<pcl::PointXYZRGBNormal> (cloud_sample, pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGBNormal>(cloud_sample), "cloud");
 		viewer->spin();
 	}
-
 
 	delete[] valids;
 	delete[] priors;

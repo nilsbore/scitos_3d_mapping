@@ -1489,7 +1489,7 @@ std::vector<ReprojectionResult> RGBDFrame::getReprojections(std::vector<superpoi
 				float tny	= m10*src_nx + m11*src_ny + m12*src_nz;
 				float tnz	= m20*src_nx + m21*src_ny + m22*src_nz;
 
-				double residualZ = mysign(dst_z-tz)*fabs(tnx*(dst_x-tx) + tny*(dst_y-ty) + tnz*(dst_z-tz));
+				double residualZ = mysign(dst_z-tz)*fabs(tnx*(dst_x-tx) + tny*(dst_y-ty) + tnz*(dst_z-tz));//dst_z-tz;//mysign(dst_z-tz)*fabs(tnx*(dst_x-tx) + tny*(dst_y-ty) + tnz*(dst_z-tz));
 				double residualD2 = (dst_x-tx)*(dst_x-tx) + (dst_y-ty)*(dst_y-ty) + (dst_z-tz)*(dst_z-tz);
 				double residualR =  dst_rgbdata[3*dst_ind + 2] - sp.r;
 				double residualG =  dst_rgbdata[3*dst_ind + 1] - sp.g;

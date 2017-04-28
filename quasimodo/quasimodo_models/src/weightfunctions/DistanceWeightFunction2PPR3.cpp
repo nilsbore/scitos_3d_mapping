@@ -168,6 +168,12 @@ DistanceWeightFunction2PPR3::~DistanceWeightFunction2PPR3(){
     if(noisecdf != 0)       {delete noisecdf;}
 }
 
+
+double DistanceWeightFunction2PPR3::getMean(){
+
+		return mind + fabs(maxd-mind)*dist->mean/double(histogram_size);
+}
+
 double DistanceWeightFunction2PPR3::getNoise(){
 	if(bidir){
         return 0.5*fabs(maxd-mind)*dist->getNoise()/double(histogram_size);//0.5*fabs(maxd-mind);
@@ -933,31 +939,82 @@ double DistanceWeightFunction2PPR3::getProbInfront(double d, bool debugg){
 }
 
 
+double DistanceWeightFunction2PPR3::getInfront(double d, bool debugg){
+	double ind = getInd(d,debugg);
+	float p = 0;
+	if(ind > meanval){	p = 1;}
+	else{				p = 0;}
+
+	if(interp){
+		double w2 = ind-int(ind);
+		double w1 = 1-w2;
+		if(ind >= 0 && (ind+1) < histogram_size){
+			p = prob[int(ind)]*w1 + prob[int(ind+1)]*w2;
+		}
+	}else{
+		if(ind >= 0 && ind < histogram_size){
+			p = prob[int(ind)];
+		}
+	}
+
+	if(debugg){printf("d: %9.9f -> ind: %7.7f -> p: %12.12f histogramsize: %7.7i maxd: %9.9f\n",d,ind,p,histogram_size,maxd);}
+	return p;
+}
 
 double DistanceWeightFunction2PPR3::getProbInfront(double start, double stop, bool debugg){
-    return getProbInfront(start,debugg);
+	//return getProbInfront(start,debugg);
 
-    printf("double DistanceWeightFunction2PPR3::getProbInfront(double start, double stop){ not implemented\n");
-    double pinf = getProbInfront(start);
-    printf("%f %f-> %f\n",start,stop,pinf);
+	double p = (1.0-getProb(start))*(getInfront(start)-getInfront(start-stop));
 
-    double ind_start = getInd(start,debugg);
-    double w2_start = ind_start-int(ind_start);
-    double w1_start = 1-w2_start;
+	//double mean = getMean();
+	if(debugg){
+		//printf("mind: %5.5f maxd: %5.5f dist->mean: %5.5f histogram_size: %i ---> mean: %5.5f\n",mind,maxd,dist->mean,histogram_size,mean);
+		printf("start: %5.5f stop %5.5f -> p %5.5f\n",start,stop,p);
+	}
+	return p;
+
+//    printf("double DistanceWeightFunction2PPR3::getProbInfront(double start, double stop){ not implemented\n");
+//    double pinf = getProbInfront(start);
+//    printf("%f %f-> %f\n",start,stop,pinf);
+
+//    double ind_start = getInd(start,debugg);
+//    double w2_start = ind_start-int(ind_start);
+//    double w1_start = 1-w2_start;
 
 
-    double ind_stop = getInd(stop,debugg);
-    double w2_stop = ind_stop-int(ind_stop);
-    double w1_stop = 1-w2_stop;
+//    double ind_stop = getInd(stop,debugg);
+//    double w2_stop = ind_stop-int(ind_stop);
+//    double w1_stop = 1-w2_stop;
 
-    printf("histogram_size: %i\n",int(histogram_size));
-    printf("start: %f -> %f %f",ind_start,w2_start,w1_start);
-    printf("  stop: %f -> %f %f \n",ind_stop,w2_stop,w1_stop);
+//    printf("histogram_size: %i\n",int(histogram_size));
+//    printf("start: %f -> %f %f",ind_start,w2_start,w1_start);
+//    printf("  stop: %f -> %f %f \n",ind_stop,w2_stop,w1_stop);
 
-    //infront[k] = (1-prob[k])*noisecdf[k];
+//    //infront[k] = (1-prob[k])*noisecdf[k];
 
-    if(pinf > 0.5){exit(0);}
-    return pinf;
+////	if(compute_infront){
+////		for(int k = 0; k < histogram_size; k++){noisecdf[k] = dist->getcdf(k);}
+////    }else{
+////        for(int k = 0; k < histogram_size; k++){noisecdf[k] = 0;}
+////    }
+
+////	double maxhist = blur_histogram[0];
+////	for(int k = 1; k < histogram_size; k++){maxhist = std::max(maxhist,double(blur_histogram[k]));}
+////	double minhist = maxhist*0.01;
+
+////	for(int k = 0; k < histogram_size; k++){
+////		if(max_under_mean && k < dist->mean){	prob[k] = maxp;	}
+////		else{
+////			double hs = std::max(minhist,std::max(1.0,double(blur_histogram[k])));
+////            prob[k] = noise[k]/hs;//never fully trust any data
+////            if(prob[k] > maxp){prob[k] = maxp;}
+////            //prob[k] = std::min(maxp , noise[k]/hs);//never fully trust any data
+////		}
+////		infront[k] = (1-prob[k])*noisecdf[k];
+
+
+//    if(pinf > 0.5){exit(0);}
+//    return pinf;
 }
 
 bool DistanceWeightFunction2PPR3::update(){

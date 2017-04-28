@@ -110,7 +110,7 @@ namespace reglib
         double getConvergence();
 
 //        void transform(Eigen::Matrix4d p);
-        void show(std::vector<Eigen::Matrix4d> poses, bool stop = true);
+        void show(std::vector<Eigen::Matrix4d> poses, bool stop = true, std::string path = "");
         unsigned long rematch(std::vector<Eigen::Matrix4d> poses, bool force = false, bool debugg_print = false);
         unsigned long model(std::vector<Eigen::Matrix4d> poses, bool force = false, bool debugg_print = false);
         unsigned long refine(std::vector<Eigen::Matrix4d> & poses, bool force = false,  bool debugg_print = false);

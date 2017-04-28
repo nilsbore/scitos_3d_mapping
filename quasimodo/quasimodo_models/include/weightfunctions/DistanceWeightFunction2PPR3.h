@@ -141,9 +141,12 @@ public:
 	virtual double getProb(double d, bool debugg = false);
 	virtual double getProbInp(double d, bool debugg = false);
 	virtual double getIRLS(double d, bool debugg = false);
+	virtual double getInfront(double d, bool debugg = false);
 	virtual double getProbInfront(double d, bool debugg = false);
     virtual double getProbInfront(double start, double stop, bool debugg = false);
 	virtual double getNoise();
+	virtual double getMean();
+
 	virtual double getConvergenceThreshold();
 	virtual bool update();
 	virtual void reset();
