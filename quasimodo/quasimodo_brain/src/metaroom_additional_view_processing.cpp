@@ -10,6 +10,7 @@
 #include "metaroom_xml_parser/simple_xml_parser.h"
 #include "metaroom_xml_parser/simple_summary_parser.h"
 #include <metaroom_xml_parser/load_utilities.h>
+//#include <semantic_map/semantic_map_summary_parser.h>
 
 #include <observation_registration_services/ObjectAdditionalViewRegistrationService.h>
 #include <observation_registration_services/AdditionalViewRegistrationService.h>
@@ -116,9 +117,11 @@ std::vector<reglib::Camera *> basecam;
 ros::NodeHandle * np;
 
 bool resend = false;
+bool backwards = false;
 bool recomputeRelativePoses = false;
 bool do_last_and_send = true;
 bool add_to_soma = false;
+bool send_previous = true;
 
 void sendMetaroomToServer(std::string path);
 bool testDynamicObjectServiceCallback(std::string path);
@@ -558,6 +561,96 @@ reglib::Model * getAVMetaroom(std::string path, bool compute_edges = true, std::
 
 int totalcounter = 0;
 
+void saveRelativePoses(const std::string& sweep_folder, const std::string& previous_sweep,
+					   std::vector<Eigen::Matrix4d, Eigen::aligned_allocator<Eigen::Matrix4d> >& model_relative_poses)
+{
+	std::string filename;
+	if (backwards) {
+	 	filename = sweep_folder + "back_relative_model_poses.xml";
+	}
+	else {
+		filename = sweep_folder + "relative_model_poses.xml";
+	}
+
+    SimpleXMLParser<pcl::PointXYZRGB>::RoomData data  = SimpleXMLParser<pcl::PointXYZRGB>::loadRoomFromXML(previous_sweep, std::vector<std::string>{"RoomIntermediateCloud"}, false, false);
+
+	QFile file(filename.c_str());
+	if (file.exists()) {
+		file.remove();
+	}
+	if (!file.open(QIODevice::ReadWrite | QIODevice::Text)) {
+		std::cerr << "Could not open file " << filename << " to save dynamic object as XML" << std::endl;
+	}
+	{
+		QXmlStreamWriter xmlWriter;
+		xmlWriter.setDevice(&file);
+
+		xmlWriter.writeStartDocument();
+
+		xmlWriter.writeStartElement("RegistrationResults");
+
+		xmlWriter.writeStartElement("ComparedSweep");
+		xmlWriter.writeAttribute("Path", previous_sweep.c_str());
+		xmlWriter.writeEndElement();
+
+		xmlWriter.writeStartElement("Poses");
+
+        Eigen::Affine3d e;
+        tf::transformTFToEigen(data.vIntermediateRoomCloudTransformsRegistered[0], e);
+
+		for (size_t i = 0; i < model_relative_poses.size(); ++i) {
+            Eigen::Matrix4d pose = e.matrix()*model_relative_poses[i];
+			QString PString;
+	        for (size_t y = 0; y < 4; ++y) {
+				for (size_t x = 0; x < 4; ++x) {
+                    PString += QString::number(pose(y, x));
+		            PString += ",";
+				}
+	        }
+			QString AttributeString("Frame");
+			AttributeString += QString::number(i);
+	        xmlWriter.writeAttribute(AttributeString, PString);
+		}
+
+		xmlWriter.writeEndElement();
+		xmlWriter.writeEndElement();
+		xmlWriter.writeEndDocument();
+	}
+}
+
+bool compare_nat(const std::string& a, const std::string& b)
+{
+    if (a.empty())
+        return true;
+    if (b.empty())
+        return false;
+    if (std::isdigit(a[0]) && !std::isdigit(b[0]))
+        return true;
+    if (!std::isdigit(a[0]) && std::isdigit(b[0]))
+        return false;
+    if (!std::isdigit(a[0]) && !std::isdigit(b[0]))
+    {
+        if (std::toupper(a[0]) == std::toupper(b[0]))
+            return compare_nat(a.substr(1), b.substr(1));
+        return (std::toupper(a[0]) < std::toupper(b[0]));
+    }
+
+    // Both strings begin with digit --> parse both numbers
+    std::istringstream issa(a);
+    std::istringstream issb(b);
+    int ia, ib;
+    issa >> ia;
+    issb >> ib;
+    if (ia != ib)
+        return ia < ib;
+
+    // Numbers are the same --> remove numbers and recurse
+    std::string anew, bnew;
+    std::getline(issa, anew);
+    std::getline(issb, bnew);
+    return (compare_nat(anew, bnew));
+}
+
 int processMetaroom(CloudPtr dyncloud, std::string path, bool store_old_xml = true){
 	path = quasimodo_brain::replaceAll(path, "//", "/");
 	quasimodo_brain::cleanPath(path);
@@ -610,7 +703,21 @@ int processMetaroom(CloudPtr dyncloud, std::string path, bool store_old_xml = tr
 	if(overall_folder.back() == '/'){overall_folder.pop_back();}
 
 	int prevind = -1;
-	std::vector<std::string> sweep_xmls = semantic_map_load_utilties::getSweepXmls<pcl::PointXYZRGB>(overall_folder);
+
+    std::vector<std::string> sweep_xmls = semantic_map_load_utilties::getSweepXmls<pcl::PointXYZRGB>(overall_folder);
+    std::sort(sweep_xmls.begin(), sweep_xmls.end(), compare_nat);
+    /*SemanticMapSummaryParser map_parser(overall_folder + "/index.xml");
+    vector<SemanticMapSummaryParser::EntityStruct> room_entities = map_parser.getRooms();
+    std::vector<std::string> sweep_xmls;
+    for (SemanticMapSummaryParser::EntityStruct& ent : room_entities) {
+        sweep_xmls.push_back(ent.roomXmlFile);
+        std::cout << ent.roomXmlFile << std::endl;
+    }*/
+    /*
+    for (unsigned int i = 0; i < sweep_xmls.size(); i++){
+        std::cout << sweep_xmls[i] << std::endl;
+    }
+    */
 	for (unsigned int i = 0; i < sweep_xmls.size(); i++){
 		sweep_xmls[i] = quasimodo_brain::replaceAll(sweep_xmls[i], "//", "/");
 		SimpleXMLParser<pcl::PointXYZRGB>::RoomData other_roomData  = parser.loadRoomFromXML(sweep_xmls[i],std::vector<std::string>(),false,false);
@@ -634,6 +741,10 @@ int processMetaroom(CloudPtr dyncloud, std::string path, bool store_old_xml = tr
 		if(other_waypointid.compare(current_waypointid) == 0){nextind = i;}
 	}
 
+    if (backwards) {
+        prevind = nextind;
+    }
+
 	std::vector< reglib::Model * > models;
 	models.push_back(fullmodel);
 
@@ -642,8 +753,9 @@ int processMetaroom(CloudPtr dyncloud, std::string path, bool store_old_xml = tr
 	std::vector< std::vector< cv::Mat > > dynamic;
 
 	std::vector< reglib::Model * > bgs;
+	std::string prev;
 	if(prevind != -1){
-		std::string prev = sweep_xmls[prevind];
+		prev = sweep_xmls[prevind];
 		printf("prev: %s\n",prev.c_str());
 		reglib::Model * bg = getAVMetaroom(prev);
 		if(bg->frames.size() == 0){
@@ -684,9 +796,11 @@ int processMetaroom(CloudPtr dyncloud, std::string path, bool store_old_xml = tr
 
 		auto sweep = SimpleXMLParser<PointType>::loadRoomFromXML(path, std::vector<std::string>{},false);
 
-		quasimodo_brain::segment(bgs,models,internal,external,dynamic,visualization_lvl,saveVisuals);
+		std::vector<Eigen::Matrix4d, Eigen::aligned_allocator<Eigen::Matrix4d> > model_relative_poses;
+		quasimodo_brain::segment(bgs,models,internal,external,dynamic,visualization_lvl,saveVisuals, &model_relative_poses);
+		saveRelativePoses(sweep_folder, prev, model_relative_poses);
 
-		quasimodo_brain::remove_old_seg(sweep_folder);
+        quasimodo_brain::remove_old_seg(sweep_folder, backwards);
 		if(models.size() == 0){	returnval = 2;}
 		else{					returnval = 3;}
 
@@ -813,8 +927,8 @@ int processMetaroom(CloudPtr dyncloud, std::string path, bool store_old_xml = tr
 							roomObject->m_roomRunNumber = sweep.roomRunNumber;
 							//				        // create label from room log time; could be useful later on, and would resolve ambiguities
 							std::stringstream ss_obj;
-							ss_obj<<boost::posix_time::to_simple_string(sweep.roomLogStartTime);
-							ss_obj<<"_object_";ss_obj<<(dynamicCounter-1);
+                            ss_obj<<boost::posix_time::to_simple_string(sweep.roomLogStartTime);
+                            ss_obj<<"_object_";ss_obj<<(dynamicCounter-1);
 							std::string tmp = ss_obj.str();
 							printf("ss_obj.str(): %s\n",tmp.c_str());
 							//roomObject->m_label = tmp;
@@ -825,7 +939,12 @@ int processMetaroom(CloudPtr dyncloud, std::string path, bool store_old_xml = tr
 
 
 						char buf [1024];
-						sprintf(buf,"%s/dynamic_obj%10.10i.pcd",sweep_folder.c_str(),dynamicCounter-1);
+                        if (backwards) {
+                            sprintf(buf,"%s/back_dynamic_obj%10.10i.pcd",sweep_folder.c_str(),dynamicCounter-1);
+                        }
+                        else {
+                            sprintf(buf,"%s/dynamic_obj%10.10i.pcd",sweep_folder.c_str(),dynamicCounter-1);
+                        }
 						pcl::io::savePCDFileBinaryCompressed(std::string(buf),*cloud_cluster);
 
 
@@ -834,7 +953,12 @@ int processMetaroom(CloudPtr dyncloud, std::string path, bool store_old_xml = tr
 						//					std::string objectpcd = std::string(buf);//object.substr(0,object.size()-4);
 						//					std::cout << objectpcd.substr(0,objectpcd.size()-4) << std::endl;
 
-						sprintf(buf,"%s/dynamic_obj%10.10i.xml",sweep_folder.c_str(),dynamicCounter-1);
+                        if (backwards) {
+                            sprintf(buf,"%s/back_dynamic_obj%10.10i.xml",sweep_folder.c_str(),dynamicCounter-1);
+                        }
+                        else {
+                            sprintf(buf,"%s/dynamic_obj%10.10i.xml",sweep_folder.c_str(),dynamicCounter-1);
+                        }
 						printf("saving dynamic objec: %s\n",buf);
 						QFile file(buf);
 						if (file.exists()){file.remove();}
@@ -857,7 +981,12 @@ int processMetaroom(CloudPtr dyncloud, std::string path, bool store_old_xml = tr
 
 						for(unsigned int j = 0; j < masks.size(); j++){
 							char buf [1024];
-							sprintf(buf,"%s/dynamicmask_%i_%i.png",sweep_folder.c_str(),dynamicCounter-1,imgnr[j]);
+                            if (backwards) {
+                                sprintf(buf,"%s/back_dynamicmask_%i_%i.png",sweep_folder.c_str(),dynamicCounter-1,imgnr[j]);
+                            }
+                            else {
+                                sprintf(buf,"%s/dynamicmask_%i_%i.png",sweep_folder.c_str(),dynamicCounter-1,imgnr[j]);
+                            }
 							cv::imwrite(buf, masks[j] );
 
 							int width = masks[j].cols;
@@ -901,7 +1030,12 @@ int processMetaroom(CloudPtr dyncloud, std::string path, bool store_old_xml = tr
 
 							printf("saving dynamic mask: dynamicmask_%i_%i.png\n",dynamicCounter-1,imgnr[j]);
 
-							sprintf(buf,"dynamicmask_%i_%i.png",dynamicCounter-1,imgnr[j]);
+                            if (backwards) {
+                                sprintf(buf,"back_dynamicmask_%i_%i.png",dynamicCounter-1,imgnr[j]);
+                            }
+                            else {
+                                sprintf(buf,"dynamicmask_%i_%i.png",dynamicCounter-1,imgnr[j]);
+                            }
 							xmlWriter->writeStartElement("Mask");
 							xmlWriter->writeAttribute("filename", QString(buf));
 							xmlWriter->writeAttribute("image_number", QString::number(imgnr[j]));
@@ -989,7 +1123,12 @@ int processMetaroom(CloudPtr dyncloud, std::string path, bool store_old_xml = tr
 				}
 				if(masks.size() > 0){
 					char buf [1024];
-					sprintf(buf,"%s/moving_obj%10.10i.xml",sweep_folder.c_str(),movingCounter-1);
+                    if (backwards) {
+                        sprintf(buf,"%s/back_moving_obj%10.10i.xml",sweep_folder.c_str(),movingCounter-1);
+                    }
+                    else {
+                        sprintf(buf,"%s/moving_obj%10.10i.xml",sweep_folder.c_str(),movingCounter-1);
+                    }
 					QFile file(buf);
 					if (file.exists()){file.remove();}
 					if (!file.open(QIODevice::ReadWrite | QIODevice::Text)){std::cerr<<"Could not open file "<< buf <<" to save dynamic object as XML"<<std::endl;}
@@ -1008,9 +1147,19 @@ int processMetaroom(CloudPtr dyncloud, std::string path, bool store_old_xml = tr
 
 					for(unsigned int j = 0; j < masks.size(); j++){
 						char buf [1024];
-						sprintf(buf,"%s/movingmask_%i_%i.png",sweep_folder.c_str(),movingCounter-1,imgnr[j]);
+                        if (backwards) {
+                            sprintf(buf,"%s/back_movingmask_%i_%i.png",sweep_folder.c_str(),movingCounter-1,imgnr[j]);
+                        }
+                        else {
+                            sprintf(buf,"%s/movingmask_%i_%i.png",sweep_folder.c_str(),movingCounter-1,imgnr[j]);
+                        }
 						cv::imwrite(buf, masks[j] );
-						sprintf(buf,"movingmask_%i_%i.png",movingCounter-1,imgnr[j]);
+                        if (backwards) {
+                            sprintf(buf,"back_movingmask_%i_%i.png",movingCounter-1,imgnr[j]);
+                        }
+                        else {
+                            sprintf(buf,"movingmask_%i_%i.png",movingCounter-1,imgnr[j]);
+                        }
 						xmlWriter->writeStartElement("Mask");
 						xmlWriter->writeAttribute("filename", QString(buf));
 						xmlWriter->writeAttribute("image_number", QString::number(imgnr[j]));
@@ -1024,6 +1173,10 @@ int processMetaroom(CloudPtr dyncloud, std::string path, bool store_old_xml = tr
 				}else{break;}
 			}
 		}
+
+        for (const Eigen::Matrix4d& p : model_relative_poses) {
+            std::cout << p << std::endl;
+        }
 	}else{
 		returnval = 1;
 	}
@@ -1031,7 +1184,12 @@ int processMetaroom(CloudPtr dyncloud, std::string path, bool store_old_xml = tr
 	if(dyncloud->points.size()){
 		dyncloud->width = dyncloud->points.size();
 		dyncloud->height = 1;
-		pcl::io::savePCDFileBinaryCompressed(sweep_folder+"/dynamic_clusters.pcd",*dyncloud);
+        if (backwards) {
+            pcl::io::savePCDFileBinaryCompressed(sweep_folder+"/back_dynamic_clusters.pcd",*dyncloud);
+        }
+        else {
+            pcl::io::savePCDFileBinaryCompressed(sweep_folder+"/dynamic_clusters.pcd",*dyncloud);
+        }
 	}
 
 
@@ -1581,7 +1739,7 @@ void processSweep(std::string path, std::string savePath){
 		prevind = i;
 	}
 
-	if(prevind >= 0){//Submit last metaroom results if not previously sent
+    if(prevind >= 0 && send && send_previous){//Submit last metaroom results if not previously sent
 		sendMetaroomToServer(sweep_xmls[prevind]);
 	}
 }
@@ -1666,14 +1824,13 @@ bool segmentRaresFiles(std::string path, bool resegment){
 		std::string sweep_folder = sweep_xml.substr(0, slash_pos) + "/";
 		QStringList segoutput = QDir(sweep_folder.c_str()).entryList(QStringList("segoutput.txt"));
 
-        printf("segoutput %i resegment %i\n",segoutput.size(),resegment);
-		if(resegment || segoutput.size() == 0){
 
-            printf("%i\n",__LINE__);
+    printf("segoutput %i resegment %i\n",segoutput.size(),resegment);
+		if(resegment || segoutput.size() == 0){
 
 			std::ofstream myfile;
 			myfile.open (sweep_folder+"segoutput.txt");
-			myfile << "dummy";
+            myfile << "dummy";
 			myfile.close();
 
 			processSweep(sweep_xml,"");
@@ -1743,9 +1900,11 @@ int main(int argc, char** argv){
 		else if(std::string(argv[i]).compare("-saveVisuals") == 0){					inputstate = 19;}
 		else if(std::string(argv[i]).compare("-testpaths") == 0 || std::string(argv[i]).compare("-testpath") == 0 || std::string(argv[i]).compare("-testPaths") == 0 || std::string(argv[i]).compare("-testPath") == 0){					inputstate = 20;}
 		else if(std::string(argv[i]).compare("-minClusterSize") == 0){					inputstate = 21;}
-        else if(std::string(argv[i]).compare("-add_to_soma") == 0){                  add_to_soma = true;}
-        else if(std::string(argv[i]).compare("-resend") == 0){						resend = true;}
-        else if(std::string(argv[i]).compare("-loadMetaroomPoses") == 0){			inputstate = 22;}
+		else if(std::string(argv[i]).compare("-add_to_soma") == 0){                  add_to_soma = true;}
+		else if(std::string(argv[i]).compare("-resend") == 0){						resend = true;}
+    else if(std::string(argv[i]).compare("-backwards") == 0){	                backwards = true;}
+    else if(std::string(argv[i]).compare("-notSendPrev") == 0){	                send_previous = false;}
+    else if(std::string(argv[i]).compare("-loadMetaroomPoses") == 0){			inputstate = 22;}
 		else if(inputstate == 0){
 			segsubs.push_back(n.subscribe(std::string(argv[i]), 1000, chatterCallback));
 		}else if(inputstate == 1){

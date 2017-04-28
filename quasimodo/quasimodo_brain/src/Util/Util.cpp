@@ -1239,7 +1239,7 @@ void writePose(QXmlStreamWriter* xmlWriter, Eigen::Matrix4d pose){
 	xmlWriter->writeEndElement(); //Rotation
 }
 
-void remove_old_seg(std::string sweep_folder){
+void remove_old_seg(std::string sweep_folder, bool backwards){
 	printf("remove_old_seg: %s\n",sweep_folder.c_str());
 	DIR *dir;
 	struct dirent *ent;
@@ -1248,25 +1248,49 @@ void remove_old_seg(std::string sweep_folder){
 		while ((ent = readdir (dir)) != NULL) {
 			std::string file = std::string(ent->d_name);
 
-			if (file.find("dynamic_obj") !=std::string::npos && (file.find(".xml") !=std::string::npos || file.find(".pcd") !=std::string::npos)){
-				printf ("removing %s\n", ent->d_name);
-				std::remove((sweep_folder+"/"+file).c_str());
-			}
+            if (backwards) {
+                if (file.find("back_dynamic_obj") !=std::string::npos && (file.find(".xml") !=std::string::npos || file.find(".pcd") !=std::string::npos)){
+                    printf ("removing %s\n", ent->d_name);
+                    std::remove((sweep_folder+"/"+file).c_str());
+                }
 
-			if (file.find("dynamicmask") !=std::string::npos && file.find(".png") !=std::string::npos){
-				printf ("removing %s\n", ent->d_name);
-				std::remove((sweep_folder+"/"+file).c_str());
-			}
+                if (file.find("back_dynamicmask") !=std::string::npos && file.find(".png") !=std::string::npos){
+                    printf ("removing %s\n", ent->d_name);
+                    std::remove((sweep_folder+"/"+file).c_str());
+                }
 
-			if (file.find("moving_obj") !=std::string::npos && (file.find(".xml") !=std::string::npos || file.find(".pcd") !=std::string::npos)){
-				printf ("removing %s\n", ent->d_name);
-				std::remove((sweep_folder+"/"+file).c_str());
-			}
+                if (file.find("back_moving_obj") !=std::string::npos && (file.find(".xml") !=std::string::npos || file.find(".pcd") !=std::string::npos)){
+                    printf ("removing %s\n", ent->d_name);
+                    std::remove((sweep_folder+"/"+file).c_str());
+                }
 
-			if (file.find("movingmask") !=std::string::npos && file.find(".png") !=std::string::npos){
-				printf ("removing %s\n", ent->d_name);
-				std::remove((sweep_folder+"/"+file).c_str());
-			}
+                if (file.find("back_movingmask") !=std::string::npos && file.find(".png") !=std::string::npos){
+                    printf ("removing %s\n", ent->d_name);
+                    std::remove((sweep_folder+"/"+file).c_str());
+                }
+            }
+			else {
+                if (file.find("back_dynamic_obj") == std::string::npos && file.find("dynamic_obj") !=std::string::npos && (file.find(".xml") !=std::string::npos || file.find(".pcd") !=std::string::npos)){
+                    printf ("removing %s\n", ent->d_name);
+                    std::remove((sweep_folder+"/"+file).c_str());
+                }
+
+                if (file.find("back_dynamicmask") == std::string::npos && file.find("dynamicmask") !=std::string::npos && file.find(".png") !=std::string::npos){
+                    printf ("removing %s\n", ent->d_name);
+                    std::remove((sweep_folder+"/"+file).c_str());
+                }
+
+                if (file.find("back_moving_obj") == std::string::npos && file.find("moving_obj") !=std::string::npos && (file.find(".xml") !=std::string::npos || file.find(".pcd") !=std::string::npos)){
+                    printf ("removing %s\n", ent->d_name);
+                    std::remove((sweep_folder+"/"+file).c_str());
+                }
+
+                if (file.find("back_movingmask") == std::string::npos && file.find("movingmask") !=std::string::npos && file.find(".png") !=std::string::npos){
+                    printf ("removing %s\n", ent->d_name);
+                    std::remove((sweep_folder+"/"+file).c_str());
+                }
+            }
+
 		}
 		closedir (dir);
 	}
@@ -1605,7 +1629,9 @@ reglib::Model * load_metaroom_model(std::string sweep_xml, std::string savePath)
 	return sweepmodel;
 }
 
-void segment(std::vector< reglib::Model * > bgs, std::vector< reglib::Model * > models, std::vector< std::vector< cv::Mat > > & internal, std::vector< std::vector< cv::Mat > > & external, std::vector< std::vector< cv::Mat > > & dynamic, int debugg, std::string savePath){
+void segment(std::vector< reglib::Model * > bgs, std::vector< reglib::Model * > models, std::vector< std::vector< cv::Mat > > & internal,
+			 std::vector< std::vector< cv::Mat > > & external, std::vector< std::vector< cv::Mat > > & dynamic, int debugg,
+			 std::string savePath, std::vector<Eigen::Matrix4d, Eigen::aligned_allocator<Eigen::Matrix4d> >* model_relative_poses){
 	double startTime = getTime();
 	printf("running segment method\n");
 	boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer;
@@ -1615,7 +1641,7 @@ void segment(std::vector< reglib::Model * > bgs, std::vector< reglib::Model * > 
 		viewer->setBackgroundColor(1.0,1.0,1.0);
 	}
 
-	reglib::MassRegistrationPPR2 * massregmod = new reglib::MassRegistrationPPR2(0.15);
+	reglib::MassRegistrationPPR2 * massregmod = new reglib::MassRegistrationPPR2(0.15); // why do you allocate __EVERYTHING__ on the heap?
 	if(savePath.size() != 0){
 		massregmod->savePath = savePath+"/segment_"+std::to_string(models.front()->id);
 	}
@@ -1634,6 +1660,7 @@ void segment(std::vector< reglib::Model * > bgs, std::vector< reglib::Model * > 
 	mu->viewer							= viewer;
 	printf("total segment part1 time: %5.5fs\n",getTime()-startTime);
 
+	// these are all the transforms in the coordinate system of the first frame in the previous sweep
 	std::vector<Eigen::Matrix4d> cpmod;
 	if(models.size() > 0 && bgs.size() > 0){
 		for(unsigned int i = 0; i < bgs.size(); i++){
@@ -1652,15 +1679,23 @@ void segment(std::vector< reglib::Model * > bgs, std::vector< reglib::Model * > 
 
 		for(unsigned int i = 0; i < bgs.size(); i++){cpmod[i] = mfrmod.poses[i];}
 
+		// for the change detection comparison without additional views, models only has 1 element (the current sweep)
 		for(unsigned int j = 0; j < models.size(); j++){
 			Eigen::Matrix4d change = mfrmod.poses[j+bgs.size()];
+            //Eigen::Matrix4d bgchange = mfrmod.poses[0]; // assuming only 1 background
+            //Eigen::Matrix4d rel_change = bgchange.colPivHouseholderQr().solve(change);
 			for(unsigned int k = 0; k < models[j]->relativeposes.size(); k++){
+                /*if (model_relative_poses != NULL) {
+                    //model_relative_poses->push_back(change*bgchange*models[j]->relativeposes[k]);
+                    model_relative_poses->push_back(rel_change*models[j]->relativeposes[k]);
+                }*/
 				models[j]->relativeposes[k] = change*models[j]->relativeposes[k];
 			}
 			for(unsigned int k = 0; k < models[j]->submodels_relativeposes.size(); k++){
 				models[j]->submodels_relativeposes[k] = change*models[j]->submodels_relativeposes[k];
 			}
 		}
+
 	}else if(models.size() > 1){
 		for(unsigned int j = 0; j < models.size(); j++){
 			if(models[j]->points.size() == 0){models[j]->recomputeModelPoints();}
@@ -1695,6 +1730,16 @@ void segment(std::vector< reglib::Model * > bgs, std::vector< reglib::Model * > 
 			bgmask.push_back(bgs[i]->modelmasks[k]->getMask());
 		}
 	}
+    if (model_relative_poses != NULL) {
+        //model_relative_poses->push_back(change*bgchange*models[j]->relativeposes[k]);
+        /*for(unsigned int k = 0; k < bgcp.size(); k++){
+            model_relative_poses->push_back(bgcp[k]);
+        }*/
+        reglib::Model * model = models[0]; // assuming only metarooms
+        for(unsigned int i = 0; i < model->relativeposes.size(); i++){
+            model_relative_poses->push_back(model->relativeposes[i]);
+        }
+    }
 	for(unsigned int j = 0; j < models.size(); j++){
 		reglib::Model * model = models[j];
 
@@ -1702,6 +1747,7 @@ void segment(std::vector< reglib::Model * > bgs, std::vector< reglib::Model * > 
 		for(unsigned int i = 0; i < model->frames.size(); i++){
 			reglib::RGBDFrame * frame = model->frames[i];
 			reglib::Camera * cam = frame->camera;
+            // is cv::Mat mask(cam->height,cam->width,CV_8UC1); mask.setTo(255); too simple? why, yes it is:
 			cv::Mat mask;
 			mask.create(cam->height,cam->width,CV_8UC1);
 			unsigned char * maskdata = (unsigned char *)(mask.data);

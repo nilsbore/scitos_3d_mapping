@@ -150,7 +150,7 @@ void writeXml(std::string xmlFile, std::vector<reglib::RGBDFrame *> & frames, st
 
 void writePose(QXmlStreamWriter* xmlWriter, Eigen::Matrix4d pose);
 
-void remove_old_seg(std::string sweep_folder);
+void remove_old_seg(std::string sweep_folder, bool backwards = false);
 
 std::string replaceAll(std::string str, std::string from, std::string to);
 
@@ -171,7 +171,9 @@ std::vector<Eigen::Matrix4f> getRegisteredViewPoses(const std::string& poses_fil
 Eigen::Matrix4d getMat(tf::StampedTransform tf);
 reglib::Model * load_metaroom_model(std::string sweep_xml, std::string savePath = "");
 
-void segment(std::vector< reglib::Model * > bgs, std::vector< reglib::Model * > models, std::vector< std::vector< cv::Mat > > & internal, std::vector< std::vector< cv::Mat > > & external, std::vector< std::vector< cv::Mat > > & dynamic, int debugg = 0, std::string savePath = "");
+void segment(std::vector< reglib::Model * > bgs, std::vector< reglib::Model * > models, std::vector< std::vector< cv::Mat > > & internal,
+             std::vector< std::vector< cv::Mat > > & external, std::vector< std::vector< cv::Mat > > & dynamic, int debugg = 0,
+             std::string savePath = "", std::vector<Eigen::Matrix4d, Eigen::aligned_allocator<Eigen::Matrix4d> >* model_relative_poses = NULL);
 std::vector<reglib::Model *> loadModelsXML(std::string path);
 std::vector<reglib::Model *> loadModelsPCDs(std::string path);
 
