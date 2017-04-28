@@ -36,7 +36,7 @@ public:
 
     bool fixed_histogram_size;
 
-	double stdval;
+    double stdval;
 	double stdval2;
 	double mulval;
 	double meanval;
@@ -114,8 +114,12 @@ public:
     int min_histogram_size;
     int max_histogram_size;
 
-
     double reg_shrinkage;
+
+	double tinl;
+	double toth;
+
+    bool tune;
 
 
     virtual DistanceWeightFunction2 * clone();
@@ -137,8 +141,12 @@ public:
 	virtual double getProb(double d, bool debugg = false);
 	virtual double getProbInp(double d, bool debugg = false);
 	virtual double getIRLS(double d, bool debugg = false);
+	virtual double getInfront(double d, bool debugg = false);
 	virtual double getProbInfront(double d, bool debugg = false);
+    virtual double getProbInfront(double start, double stop, bool debugg = false);
 	virtual double getNoise();
+	virtual double getMean();
+
 	virtual double getConvergenceThreshold();
 	virtual bool update();
 	virtual void reset();
@@ -147,7 +155,10 @@ public:
     virtual double getDfromInd(double ind, bool debugg = false);
 
 	virtual double getWeight(double invstd, double d,double & infoweight, double & prob, bool debugg = false);
-
+    virtual VectorXd getWeights(std::vector<double > invstd, MatrixXd mat, bool debugg = false);
+    virtual void print();
+    virtual void setTune();
+    virtual double getPower();
 };
 
 }

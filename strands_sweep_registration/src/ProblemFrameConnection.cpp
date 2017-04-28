@@ -15,7 +15,7 @@ ProblemFrameConnection::ProblemFrameConnection(ceres::Problem & problem, Frame *
 
 void ProblemFrameConnection::addMatchesToProblem(ceres::Problem & problem, std::vector< CostFunction * > & costfunctions, double hubersize){
 	//printf("addMatchesToProblem: %i\n",costfunctions.size());
-	for(unsigned int i = 0; i < costfunctions.size() && i < 1000; i++ ){
+	for(unsigned int i = 0; i < costfunctions.size() && i < 500; i++ ){
 		//problem.AddResidualBlock(costfunctions.at(i), 0 , src_variable, dst_variable, params);
 		problem.AddResidualBlock(costfunctions.at(i), new ceres::HuberLoss(hubersize) , src_variable, dst_variable, params);
 	}
@@ -148,7 +148,9 @@ void ProblemFrameConnection::findPossibleMatches(float di, float pi, Eigen::Matr
 
 	for(int i = 0; i < nr_src; i++){
 		int j = best_src_id[i];
+		float d = best_src[i];
 		if(best_dst_id[j] != i){continue;}//One to one
+		if( d > 0.15){continue;}//threshold
 
 		possible_matches_fdistance.push_back(best_src_f[i]);
 		possible_matches_edistance.push_back(best_src_e[i]);

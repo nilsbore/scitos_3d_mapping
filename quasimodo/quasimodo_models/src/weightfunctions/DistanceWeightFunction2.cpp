@@ -13,6 +13,12 @@ DistanceWeightFunction2::DistanceWeightFunction2(){
 }
 DistanceWeightFunction2::~DistanceWeightFunction2(){}
 
+void DistanceWeightFunction2::setTune(){}
+
+void DistanceWeightFunction2::setDebugg(bool debugg){
+    debugg_print = debugg;
+}
+
 MatrixXd DistanceWeightFunction2::getMat(std::vector<double> & vec){
 	unsigned long nr_data = vec.size();
 	Eigen::VectorXd v (nr_data);
@@ -107,10 +113,18 @@ double DistanceWeightFunction2::getProbInfront(double d, bool debugg){
 	return 0;
 }
 
-double DistanceWeightFunction2::getNoise(){
-    if(f == THRESHOLD){return p / 4;}
-    return 0.001;
+
+double DistanceWeightFunction2::getProbInfront(double start, double stop, bool debugg){
+    printf("double DistanceWeightFunction2::getProbInfront(double start, double stop){ not implemented\n");
+    exit(0);
+    return 0;
 }
+
+double DistanceWeightFunction2::getNoise(){
+    //if(f == THRESHOLD){return p / 4;}
+    return 0.002;
+}
+
 bool DistanceWeightFunction2::update(){return true;}
 void DistanceWeightFunction2::reset(){}
 
@@ -155,6 +169,21 @@ double DistanceWeightFunction2::getWeight(double invstd, double d, double & info
 	return infoweight*prob;
 }
 
+VectorXd DistanceWeightFunction2::getWeights(std::vector<double > invstd, MatrixXd mat, bool debugg){
+    VectorXd probs = getProbs(mat);
+//    for(unsigned int i = 0; i < invstd.size(); i++){
+//        double
+//    }
+    return probs;
+}
+
+void DistanceWeightFunction2::print(){
+
+}
+
+double DistanceWeightFunction2::getPower(){
+    return 2;
+}
 
 }
 

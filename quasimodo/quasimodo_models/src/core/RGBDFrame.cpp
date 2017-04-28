@@ -52,6 +52,7 @@ RGBDFrame::RGBDFrame(){
 	pose = Eigen::Matrix4d::Identity();
 	keyval = "";
 	soma_id = "";
+    use_range_information = true;
 	labels = 0;
 }
 
@@ -307,6 +308,7 @@ RGBDFrame * RGBDFrame::clone(){
 	frame->ce = ce.clone();
 	frame->ce = ce.clone();
 	frame->ce = ce.clone();
+    frame->use_range_information = use_range_information;
 
 	unsigned int width = camera->width;
 	unsigned int height = camera->height;
@@ -324,6 +326,7 @@ RGBDFrame * RGBDFrame::clone(){
 RGBDFrame::RGBDFrame(Camera * camera_, cv::Mat rgb_, cv::Mat depth_, double capturetime_, Eigen::Matrix4d pose_, bool compute_normals, std::string savePath, bool compute_imgedges){
 	soma_id = "";
 	labels = 0;
+    use_range_information = true;
 
 	//printf("savepath: %s\n",savePath.c_str());
 	bool verbose = false;
@@ -750,7 +753,7 @@ RGBDFrame::RGBDFrame(Camera * camera_, cv::Mat rgb_, cv::Mat depth_, double capt
 
 		ce = cenms;
 
-		int dilation_size = 2;
+        int dilation_size = 0;
 		cv::dilate( det, det_dilate, getStructuringElement( cv::MORPH_RECT, cv::Size( 2*dilation_size + 1, 2*dilation_size+1 ), cv::Point( dilation_size, dilation_size ) ) );
 		unsigned char * det_dilatedata = (unsigned char*)det_dilate.data;
 
@@ -1486,7 +1489,7 @@ std::vector<ReprojectionResult> RGBDFrame::getReprojections(std::vector<superpoi
 				float tny	= m10*src_nx + m11*src_ny + m12*src_nz;
 				float tnz	= m20*src_nx + m21*src_ny + m22*src_nz;
 
-				double residualZ = mysign(dst_z-tz)*fabs(tnx*(dst_x-tx) + tny*(dst_y-ty) + tnz*(dst_z-tz));
+				double residualZ = mysign(dst_z-tz)*fabs(tnx*(dst_x-tx) + tny*(dst_y-ty) + tnz*(dst_z-tz));//dst_z-tz;//mysign(dst_z-tz)*fabs(tnx*(dst_x-tx) + tny*(dst_y-ty) + tnz*(dst_z-tz));
 				double residualD2 = (dst_x-tx)*(dst_x-tx) + (dst_y-ty)*(dst_y-ty) + (dst_z-tz)*(dst_z-tz);
 				double residualR =  dst_rgbdata[3*dst_ind + 2] - sp.r;
 				double residualG =  dst_rgbdata[3*dst_ind + 1] - sp.g;
@@ -1552,7 +1555,8 @@ std::vector<superpoint> RGBDFrame::getSuperPoints(Eigen::Matrix4d cp, unsigned i
 
                 bordercount+=is_boundry;
 
-                ret[count++]	= superpoint(Vector3f(tx,ty,tz),Vector3f(tnx,tny,tnz),rgb, getInformation(z), 1, 0,is_boundry);
+                if(use_range_information){ret[count++]	= superpoint(Vector3f(tx,ty,tz),Vector3f(tnx,tny,tnz),rgb, getInformation(z), 1, 0,is_boundry);}
+                else{ret[count++]	= superpoint(Vector3f(tx,ty,tz),Vector3f(tnx,tny,tnz),rgb, 1, 1, 0,is_boundry);}
 			}else{
 				if(zeroinclude){
                     ret[count++]	= superpoint(Eigen::Vector3f(0,0,0),Eigen::Vector3f(0,0,0),rgb, 0, 1, 0);

@@ -53,19 +53,25 @@ public:
 
 	MatrixXd getMat(std::vector<double> & vec);
 
+    virtual void setDebugg(bool debugg);
     virtual void computeModel(std::vector<double> & vec);
     virtual void computeModel(double * vec, unsigned int nr_data, unsigned int dim = 1);
 	virtual void computeModel(MatrixXd mat);
 	virtual VectorXd getProbs(std::vector<double> & vec);
 	virtual VectorXd getProbs(MatrixXd mat);
-	virtual double getProbInfront(double d, bool debugg = false);
+    virtual double getProbInfront(double d, bool debugg = false);
+    virtual double getProbInfront(double start, double stop, bool debugg = false);
 	virtual double getProb(double d, bool debugg = false);
 	virtual double getNoise();
 	virtual double getConvergenceThreshold();
 	virtual bool update();
 	virtual void reset();
-	virtual std::string getString();
-	virtual double getWeight(double invstd, double d, double & infoweight, double & prob, bool debugg = false);
+    virtual std::string getString();
+    virtual double getWeight(double invstd, double d, double & infoweight, double & prob, bool debugg = false);
+    virtual VectorXd getWeights(std::vector<double > invstd, MatrixXd mat, bool debugg = false);
+    virtual void print();
+    virtual void setTune();
+    virtual double getPower();
 };
 
 }
@@ -73,4 +79,6 @@ public:
 #include "DistanceWeightFunction2PPR.h"
 #include "DistanceWeightFunction2PPR2.h"
 #include "DistanceWeightFunction2PPR3.h"
+#include "DistanceWeightFunction2Tdist.h"
+#include "DistanceWeightFunction2JointDist.h"
 #endif // DistanceWeightFunction2_H

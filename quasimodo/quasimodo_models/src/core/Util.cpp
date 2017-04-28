@@ -1,6 +1,77 @@
 #include "core/Util.h"
 namespace reglib{
 
+	std::vector<double> getVector(Eigen::VectorXd data){
+		std::vector<double> ret;
+		int nr_data = data.cols();
+		ret.resize(nr_data);
+		for(unsigned int i = 0; i < nr_data; i++){
+			ret[i] = data(i);
+		}
+		return ret;
+
+	}
+	double getMedian(std::vector<double> data){
+			int nr_data = data.size();
+			int nr_active = nr_data;
+			std::vector<double> active = data;
+
+			int total_smaller = 0;
+			int total_larger = 0;
+			double max_smaller = 10000000;
+			double min_larger = -10000000;
+
+			int target = nr_data / 2;
+
+			//while(true){
+			while(true){
+				if(nr_active <= 1){return active.front();}
+				int larger = 0;
+				int smaller = 0;
+				int identical = 0;
+
+				double pivot = active[rand() % nr_active];
+				for(int i = 0; i < nr_active; i++){
+					double current = active[i];
+					if(current > pivot){
+						larger++;
+					}else if(current < pivot){
+						smaller++;
+					}else{
+						identical++;
+					}
+				}
+
+				int diff = larger+total_larger - (smaller+total_smaller);
+				if(fabs(diff) <= identical){
+					return pivot;
+				}else if(smaller+total_smaller > larger+total_larger){ //too many in smaller, remove larger
+					total_larger += larger+identical;
+					for(int i = 0; i < nr_active; i++){
+						double current = active[i];
+						if(current >= pivot){
+							active[i] = active[--nr_active];
+							i--;
+						}
+					}
+				}else if(smaller+total_smaller < larger+total_larger){ //too many in smaller, remove larger
+					total_smaller += smaller+identical;
+					for(int i = 0; i < nr_active; i++){
+						double current = active[i];
+						if(current <= pivot){
+							active[i] = active[--nr_active];
+							i--;
+						}
+					}
+				}
+			}
+			return 0;
+	}
+
+	double getMedian(Eigen::VectorXd data){
+		return getMedian(getVector(data));
+	}
+
     double getChange(Eigen::Matrix4d & change, double meandist){
         double change_t = 0;
         double change_r = 0;

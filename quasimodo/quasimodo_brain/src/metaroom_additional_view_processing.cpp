@@ -112,7 +112,7 @@ std::string saveVisuals = "";
 
 std::string posepath = "testposes.xml";
 std::vector<Eigen::Matrix4d> sweepPoses;
-reglib::Camera * basecam;
+std::vector<reglib::Camera *> basecam;
 
 ros::NodeHandle * np;
 
@@ -126,6 +126,39 @@ bool send_previous = true;
 void sendMetaroomToServer(std::string path);
 bool testDynamicObjectServiceCallback(std::string path);
 bool dynamicObjectsServiceCallback(DynamicObjectsServiceRequest &req, DynamicObjectsServiceResponse &res);
+
+void loadMetaroomPoses(std::string xmlpaths){
+    SimpleXMLParser<pcl::PointXYZRGB> parser;
+    std::vector<std::string> sweep_xmls = semantic_map_load_utilties::getSweepXmls<pcl::PointXYZRGB>(xmlpaths);
+    SimpleXMLParser<pcl::PointXYZRGB>::RoomData roomData;
+    for (unsigned int i = 0; i < sweep_xmls.size(); i++){
+        sweep_xmls[i] = quasimodo_brain::replaceAll(sweep_xmls[i], "//", "/");
+
+        std::vector<std::string> dummy;
+        dummy.push_back("RoomIntermediateCloud");
+        dummy.push_back("IntermediatePosition");
+        roomData  = parser.loadRoomFromXML(sweep_xmls[i],dummy);
+
+        if(roomData.vIntermediateRoomCloudTransforms.size() != 0 ){break;}
+    }
+
+    sweepPoses.resize(0);
+    basecam.resize(0);
+
+    for (size_t i=0; i < 17 && i<roomData.vIntermediateRoomCloudTransforms.size(); i++){
+
+        image_geometry::PinholeCameraModel aCameraModel = roomData.vIntermediateRoomCloudCamParamsCorrected[i];
+        reglib::Camera * cam	= new reglib::Camera();
+        cam->fx                 = aCameraModel.fx();
+        cam->fy                 = aCameraModel.fy();
+        cam->cx                 = aCameraModel.cx();
+        cam->cy                 = aCameraModel.cy();
+        basecam.push_back(cam);
+        cam->print();
+
+        sweepPoses.push_back(quasimodo_brain::getMat(roomData.vIntermediateRoomCloudTransformsRegistered[i]));
+    }
+}
 
 reglib::Model * getAVMetaroom(std::string path, bool compute_edges = true, std::string saveVisuals_sp = ""){
 	printf("getAVMetaroom: %s\n",path.c_str());
@@ -172,6 +205,13 @@ reglib::Model * getAVMetaroom(std::string path, bool compute_edges = true, std::
 		//quasimodo_brain::recomputeSomaFrame(frame,np,std::string(buf));
 		frames.push_back(frame);
 		counter++;
+
+        if(sweepPoses.size() != 0){
+            delete cam;
+            frame->camera   = basecam[frames.size()-1]->clone();
+            frame->pose     = frames.front()->pose * sweepPoses[frames.size()-1];
+            if(sweepPoses.size() == frames.size()){break;}
+        }
 	}
 
 	printf("frames: %i counter: %i\n",frames.size(),counter);
@@ -187,9 +227,13 @@ reglib::Model * getAVMetaroom(std::string path, bool compute_edges = true, std::
 	unsigned char * maskdata = (unsigned char *)fullmask.data;
 	for(int j = 0; j < 480*640; j++){maskdata[j] = 255;}
 
+	size_t max_nr_frames = roomData.vIntermediateRoomClouds.size();
+    if(sweepPoses.size() != 0){
+        max_nr_frames = std::min(max_nr_frames,sweepPoses.size());
+    }
 
 	std::vector<reglib::RGBDFrame * > metaroom_frames;
-	for (size_t i=0; i<roomData.vIntermediateRoomClouds.size(); i++){
+	for (size_t i=0; i < max_nr_frames && i < 17; i++){
 		printf("loading intermedite %i\n",i);
 		if(i >= counter){
 			image_geometry::PinholeCameraModel aCameraModel = roomData.vIntermediateRoomCloudCamParamsCorrected[i];
@@ -207,6 +251,12 @@ reglib::Model * getAVMetaroom(std::string path, bool compute_edges = true, std::
 			cam->save(std::string(buf)+"_camera");
 			metaroom_frames.push_back(frame);
 			counter++;
+
+            if(sweepPoses.size() != 0){
+                delete cam;
+                frame->camera   = basecam[i]->clone();
+                frame->pose     = metaroom_frames.front()->pose*sweepPoses[i];
+            }
 		}else{
 			metaroom_frames.push_back(frames[i]);
 		}
@@ -222,11 +272,14 @@ reglib::Model * getAVMetaroom(std::string path, bool compute_edges = true, std::
 	//Metaroom frames added...
 
 	sweepmodel->points = quasimodo_brain::getSuperPoints(sweep_folder+"/sweepmodel_superpoints.bin");//Try to load superpoints
-	if(sweepmodel->points.size() == 0){												//If it fails we have to recompute the points...
+    if(true || sweepmodel->points.size() == 0){												//If it fails we have to recompute the points...
 		sweepmodel->recomputeModelPoints();
 		quasimodo_brain::saveSuperPoints(sweep_folder+"/sweepmodel_superpoints.bin",sweepmodel->points,Eigen::Matrix4d::Identity(),1.0);
 	}
 	printf("sweepmodel fully loaded!\n");
+
+    quasimodo_brain::writeXml(sweep_folder+"ViewGroup.xml",sweepmodel->frames,sweepmodel->relativeposes);
+
 	return sweepmodel;
 
 	//Load rest of model if possible
@@ -635,6 +688,14 @@ int processMetaroom(CloudPtr dyncloud, std::string path, bool store_old_xml = tr
 		return 0;
 	}
 
+
+	if(fr.size() > 50){
+		printf("too many frames in model, returning\n");
+		fullmodel->fullDelete();
+		delete fullmodel;
+		return 0;
+	}
+
 	DynamicObjectXMLParser objectparser(sweep_folder, true);
 
 	std::string current_waypointid = current_roomData.roomWaypointId;
@@ -663,6 +724,7 @@ int processMetaroom(CloudPtr dyncloud, std::string path, bool store_old_xml = tr
 		std::string other_waypointid = other_roomData.roomWaypointId;
 
 		if(sweep_xmls[i].compare(path) == 0){break;}
+		if(other_roomData.roomLogStartTime == current_roomData.roomLogStartTime){continue;}
 		if(other_waypointid.compare(current_waypointid) == 0){prevind = i;}
 	}
 
@@ -1213,7 +1275,7 @@ std::vector<reglib::Model *> loadModels(std::string path){
 						QString depthpath = attributes.value("image_number").toString();
 						number = atoi(depthpath.toStdString().c_str());
 					}else{break;}
-
+                    printf("number: %i frames.size() %i\n",number,frames.size());
 					mod->frames.push_back(frames[number]->clone());
 					mod->relativeposes.push_back(poses[number]);
 					mod->modelmasks.push_back(new reglib::ModelMask(mask));
@@ -1751,6 +1813,9 @@ void add_soma_id_callback(const std_msgs::String::ConstPtr& msg){
 
 bool segmentRaresFiles(std::string path, bool resegment){
 	vector<string> sweep_xmls = semantic_map_load_utilties::getSweepXmls<PointType>(path);
+    printf("segmentRaresFiles: %s\n",path.c_str());
+    printf("sweep_xmls: %i\n",sweep_xmls.size());
+
 	for (auto sweep_xml : sweep_xmls) {
 		printf("sweep_xml: %s\n",sweep_xml.c_str());
 
@@ -1759,8 +1824,10 @@ bool segmentRaresFiles(std::string path, bool resegment){
 		std::string sweep_folder = sweep_xml.substr(0, slash_pos) + "/";
 		QStringList segoutput = QDir(sweep_folder.c_str()).entryList(QStringList("segoutput.txt"));
 
-		printf("segoutput %i\n",segoutput.size());
-        if(resegment || segoutput.size() == 0){
+
+    printf("segoutput %i resegment %i\n",segoutput.size(),resegment);
+		if(resegment || segoutput.size() == 0){
+
 			std::ofstream myfile;
 			myfile.open (sweep_folder+"segoutput.txt");
             myfile << "dummy";
@@ -1795,8 +1862,10 @@ int main(int argc, char** argv){
 
 	std::vector<std::string> trainMetarooms;
 	std::vector<std::string> sendMetaroomToServers;
-	std::vector<std::string> processMetarooms;
-	std::vector<std::string> testpaths;
+    std::vector<std::string> processMetarooms;
+    std::vector<std::string> testpaths;
+
+    std::string metaroomPosesPath = "";
 
 	std::vector<bool>		 raresfiles_resegment;
 	std::vector<std::string> raresfiles;
@@ -1822,7 +1891,7 @@ int main(int argc, char** argv){
 		else if(std::string(argv[i]).compare("-statusmsg") == 0){					inputstate	= 14;}
 		else if(std::string(argv[i]).compare("-files") == 0){						inputstate	= 15;}
 		else if(std::string(argv[i]).compare("-baseSweep") == 0){					inputstate	= 16;}
-		else if(std::string(argv[i]).compare("-resegment") == 0){					resegment	= true;}
+        else if(std::string(argv[i]).compare("-resegment") == 0){					resegment	= true; printf("resegment: %i\n",resegment);}
 		else if(std::string(argv[i]).compare("-once") == 0){						once		= true;}
 		else if(std::string(argv[i]).compare("-nobase") == 0){						baseSetting = false;}
 		else if(std::string(argv[i]).compare("-recomputeRelativePoses") == 0){		recomputeRelativePoses = true;}
@@ -1833,8 +1902,9 @@ int main(int argc, char** argv){
 		else if(std::string(argv[i]).compare("-minClusterSize") == 0){					inputstate = 21;}
 		else if(std::string(argv[i]).compare("-add_to_soma") == 0){                  add_to_soma = true;}
 		else if(std::string(argv[i]).compare("-resend") == 0){						resend = true;}
-        else if(std::string(argv[i]).compare("-backwards") == 0){	                backwards = true;}
-        else if(std::string(argv[i]).compare("-notSendPrev") == 0){	                send_previous = false;}
+    else if(std::string(argv[i]).compare("-backwards") == 0){	                backwards = true;}
+    else if(std::string(argv[i]).compare("-notSendPrev") == 0){	                send_previous = false;}
+    else if(std::string(argv[i]).compare("-loadMetaroomPoses") == 0){			inputstate = 22;}
 		else if(inputstate == 0){
 			segsubs.push_back(n.subscribe(std::string(argv[i]), 1000, chatterCallback));
 		}else if(inputstate == 1){
@@ -1880,10 +1950,14 @@ int main(int argc, char** argv){
 			testpaths.push_back(std::string(argv[i]));
 		}else if(inputstate == 21){
 			minClusterSize  = atoi(argv[i]);
-		}
+        }else if(inputstate == 22){
+            printf("-loadMetaroomPoses(%s)\n",argv[i]);
+            loadMetaroomPoses(std::string(argv[i]));
+        }
 	}
 
-	printf("done reading commands.\n");
+    printf("done reading commands.\n");
+    printf("resegment: %i\n",resegment);
 
 	if(visualization_lvl != 0 || visualization_lvl_regref != 0 || visualization_lvl_regini != 0){
 		viewer = boost::shared_ptr<pcl::visualization::PCLVisualizer>(new pcl::visualization::PCLVisualizer ("3D Viewer"));
