@@ -1431,20 +1431,20 @@ std::vector<ReprojectionResult> RGBDFrame::getReprojections(std::vector<superpoi
 	unsigned short * dst_depthdata		= (unsigned short	*)(depth.data);
 	float		   * dst_normalsdata	= (float			*)(normals.data);
 
-	float m00 = cp(0,0); float m01 = cp(0,1); float m02 = cp(0,2); float m03 = cp(0,3);
-	float m10 = cp(1,0); float m11 = cp(1,1); float m12 = cp(1,2); float m13 = cp(1,3);
-	float m20 = cp(2,0); float m21 = cp(2,1); float m22 = cp(2,2); float m23 = cp(2,3);
+	double m00 = cp(0,0); double m01 = cp(0,1); double m02 = cp(0,2); double m03 = cp(0,3);
+	double m10 = cp(1,0); double m11 = cp(1,1); double m12 = cp(1,2); double m13 = cp(1,3);
+	double m20 = cp(2,0); double m21 = cp(2,1); double m22 = cp(2,2); double m23 = cp(2,3);
 
 	Camera * dst_camera				= camera;
 	const unsigned int dst_width	= dst_camera->width;
 	const unsigned int dst_height	= dst_camera->height;
-	const float dst_idepth			= dst_camera->idepth_scale;
-	const float dst_cx				= dst_camera->cx;
-	const float dst_cy				= dst_camera->cy;
-	const float dst_fx				= dst_camera->fx;
-	const float dst_fy				= dst_camera->fy;
-	const float dst_ifx				= 1.0/dst_camera->fx;
-	const float dst_ify				= 1.0/dst_camera->fy;
+	const double dst_idepth			= dst_camera->idepth_scale;
+	const double dst_cx				= dst_camera->cx;
+	const double dst_cy				= dst_camera->cy;
+	const double dst_fx				= dst_camera->fx;
+	const double dst_fy				= dst_camera->fy;
+	const double dst_ifx				= 1.0/dst_camera->fx;
+	const double dst_ify				= 1.0/dst_camera->fy;
 	const unsigned int dst_width2	= dst_camera->width  - 2;
 	const unsigned int dst_height2	= dst_camera->height - 2;
 
@@ -1453,41 +1453,41 @@ std::vector<ReprojectionResult> RGBDFrame::getReprojections(std::vector<superpoi
 		superpoint & sp = spvec[src_ind];
 		if(sp.point_information == 0){continue;}
 
-		float src_x = sp.x;
-		float src_y = sp.y;
-		float src_z = sp.z;
-		float tz	= m20*src_x + m21*src_y + m22*src_z + m23;
+		double src_x = sp.x;
+		double src_y = sp.y;
+		double src_z = sp.z;
+		double tz	= m20*src_x + m21*src_y + m22*src_z + m23;
 
 		if(prefilter && tz < 0){continue;}
 
-		float src_nx = sp.nx;
-		float src_ny = sp.ny;
-		float src_nz = sp.nz;
+		double src_nx = sp.nx;
+		double src_ny = sp.ny;
+		double src_nz = sp.nz;
 
-		float tx	= m00*src_x + m01*src_y + m02*src_z + m03;
-		float ty	= m10*src_x + m11*src_y + m12*src_z + m13;
+		double tx	= m00*src_x + m01*src_y + m02*src_z + m03;
+		double ty	= m10*src_x + m11*src_y + m12*src_z + m13;
 
-		float itz	= 1.0/tz;
-		float dst_w	= dst_fx*tx*itz + dst_cx;
-		float dst_h	= dst_fy*ty*itz + dst_cy;
+		double itz	= 1.0/tz;
+		double dst_w	= dst_fx*tx*itz + dst_cx;
+		double dst_h	= dst_fy*ty*itz + dst_cy;
 
 		if((dst_w > 0) && (dst_h > 0) && (dst_w < dst_width2) && (dst_h < dst_height2)){
 			unsigned int dst_ind = unsigned(dst_h+0.5) * dst_width + unsigned(dst_w+0.5);
 			if(maskvec != 0 && maskvec[dst_ind] == 0){continue;}
 
-			float dst_z = dst_idepth*float(dst_depthdata[dst_ind]);
-			float dst_nx = dst_normalsdata[3*dst_ind+0];
+			double dst_z = dst_idepth*double(dst_depthdata[dst_ind]);
+			double dst_nx = dst_normalsdata[3*dst_ind+0];
 			if(dst_z > 0 && dst_nx != 2){
 				if(useDet && dst_detdata[dst_ind] != 0){continue;}
-				float dst_ny = dst_normalsdata[3*dst_ind+1];
-				float dst_nz = dst_normalsdata[3*dst_ind+2];
+				double dst_ny = dst_normalsdata[3*dst_ind+1];
+				double dst_nz = dst_normalsdata[3*dst_ind+2];
 
-				float dst_x = (float(dst_w) - dst_cx) * dst_z * dst_ifx;
-				float dst_y = (float(dst_h) - dst_cy) * dst_z * dst_ify;
+				double dst_x = (double(int(0.5+dst_w)) - dst_cx) * dst_z * dst_ifx;
+				double dst_y = (double(int(0.5+dst_h)) - dst_cy) * dst_z * dst_ify;
 
-				float tnx	= m00*src_nx + m01*src_ny + m02*src_nz;
-				float tny	= m10*src_nx + m11*src_ny + m12*src_nz;
-				float tnz	= m20*src_nx + m21*src_ny + m22*src_nz;
+				double tnx	= m00*src_nx + m01*src_ny + m02*src_nz;
+				double tny	= m10*src_nx + m11*src_ny + m12*src_nz;
+				double tnz	= m20*src_nx + m21*src_ny + m22*src_nz;
 
 				double residualZ = mysign(dst_z-tz)*fabs(tnx*(dst_x-tx) + tny*(dst_y-ty) + tnz*(dst_z-tz));//dst_z-tz;//mysign(dst_z-tz)*fabs(tnx*(dst_x-tx) + tny*(dst_y-ty) + tnz*(dst_z-tz));
 				double residualD2 = (dst_x-tx)*(dst_x-tx) + (dst_y-ty)*(dst_y-ty) + (dst_z-tz)*(dst_z-tz);
@@ -1495,10 +1495,45 @@ std::vector<ReprojectionResult> RGBDFrame::getReprojections(std::vector<superpoi
 				double residualG =  dst_rgbdata[3*dst_ind + 1] - sp.g;
 				double residualB =  dst_rgbdata[3*dst_ind + 0] - sp.b;
 				double angle = tnx*dst_nx + tny*dst_ny + tnz*dst_nz;
+
+				if(src_ind == 10696 && dst_ind == 10713){
+
+					printf("dnx %8.8f = (%8.8f * %8.8f)\n",tnx*dst_nx,tnx,dst_nx);
+					printf("dny %8.8f = (%8.8f * %8.8f)\n",tny*dst_ny,tny,dst_ny);
+					printf("dnz %8.8f = (%8.8f * %8.8f)\n",tnz*dst_nz,tnz,dst_nz);
+
+
+//					printf("%i %i -> angle: %5.5f\n",src_ind,dst_ind,angle);
+					printf("s pos: %5.5f %5.5f %5.5f normal: %5.5f %5.5f %5.5f\n",tx,ty,tz,tnx,tny,tnz);
+					printf("d pos: %5.5f %5.5f %5.5f normal: %5.5f %5.5f %5.5f\n",dst_x,dst_y,dst_z,dst_nx,dst_ny,dst_nz);
+
+//					double signval = mysign(dst_z-tz);
+//					double dx = dst_x-tx;
+//					double dy = dst_y-ty;
+//					double dz = dst_z-tz;
+//					double pdx = tnx*dx;
+//					double pdy = tny*dy;
+//					double pdz = tnz*dz;
+//					printf("signval %1.1f\n",signval);
+//					printf("dx %8.8f = (%8.8f - %8.8f)\n",dx,dst_x,tx);
+//					printf("dy %8.8f = (%8.8f - %8.8f)\n",dy,dst_y,ty);
+//					printf("dz %8.8f = (%8.8f - %8.8f)\n",dz,dst_z,tz);
+//					printf("--\n");
+//					printf("pdx %8.8f = (%8.8f * %8.8f)\n",pdx,tnx,dx);
+//					printf("pdy %8.8f = (%8.8f * %8.8f)\n",pdy,tny,dy);
+//					printf("pdz %8.8f = (%8.8f * %8.8f)\n",pdz,tnz,dz);
+					printf("old residualZ: %8.8f\n",residualZ);
+					//printf("%1.1f * (%8.8f + %8.8f + %8.8f) from %8.8f = (%8.8f - %8.8f) , %8.8f = (%8.8f - %8.8f) , %8.8f = (%8.8f - %8.8f)\n",signval,pdx,pdy,pdz,dx,tx,dst_x,dy,ty,dst_y,dz,tz,dst_z);
+					//printf("%1.1f * (%8.8f + %8.8f + %8.8f) from %8.8f = (%8.8f - %8.8f) , %8.8f = (%8.8f - %8.8f) , %8.8f = (%8.8f - %8.8f)\n",signval,pdx,pdy,pdz,dx,tx,dst_x,dy,ty,dst_y,dz,tz,dst_z);
+					//printf("%1.1f * (%8.8f + %8.8f + %8.8f) from %8.8f = (%8.8f - %8.8f) , %8.8f = (%8.8f - %8.8f) , %8.8f = (%8.8f - %8.8f)\n",signval,pdx,pdy,pdz,dx,tx,dst_x,dy,ty,dst_y,dz,tz,dst_z);
+					//printf("%1.1f * (%8.8f + %8.8f + %8.8f) from %8.8f = (%8.8f - %8.8f) , %8.8f = (%8.8f - %8.8f) , %8.8f = (%8.8f - %8.8f)\n",signval,pdx,pdy,pdz,dx,tx,dst_x,dy,ty,dst_y,dz,tz,dst_z);
+				}
+
 				ret.push_back(ReprojectionResult (src_ind, dst_ind, angle, residualZ,residualD2, residualR, residualG, residualB, getNoise(dst_z), 1.0));
 			}
 		}
 	}
+	//exit(0);
 	return ret;
 }
 

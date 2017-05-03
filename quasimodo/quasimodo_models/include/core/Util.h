@@ -233,7 +233,7 @@ template <typename T> struct ArrayData3D {
 	//typedef nanoflann2::KDTreeEigenMatrixAdaptor< Eigen::Matrix<double,-1,-1>, SAMPLES_DIM,nanoflann2::metric_L2_Simple> KDTreed;
 	//typedef nanoflann2::KDTreeEigenMatrixAdaptor< Eigen::Matrix<float,-1,-1>, SAMPLES_DIM,nanoflann2::metric_L2_Simple> KDTreef;
 	double getTime();
-	double mysign(double v);
+	//double mysign(double v);
 
 
 

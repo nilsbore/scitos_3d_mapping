@@ -3,6 +3,12 @@
 namespace reglib
 {
 
+
+double mysign(double v){
+	if(v < 0){return -1;}
+	return 1;
+}
+
 superpoint::superpoint(Eigen::Vector3f p, Eigen::Vector3f n, Eigen::VectorXf f, double pi, double fi, int id, bool is_boundry_){
     x	= p(0);
     y	= p(1);
@@ -66,7 +72,51 @@ void superpoint::merge(superpoint p, double weight){
 }
 
 void superpoint::print(){
-    printf("point: %5.5f %5.5f %5.5f Colour: %5.5f %5.5f %5.5f Infos: %5.5f %5.5f %5.5f\n",x,y,z,r,g,b,point_information,normal_information,colour_information);
+	printf("point: %5.5f %5.5f %5.5f normal: %5.5f %5.5f %5.5f Colour: %5.5f %5.5f %5.5f Infos: %5.5f %5.5f %5.5f\n",x,y,z,nx,ny,nz,r,g,b,point_information,normal_information,colour_information);
+}
+
+void superpoint::transform(Eigen::Matrix4d cp){
+	double m00 = cp(0,0); double m01 = cp(0,1); double m02 = cp(0,2); double m03 = cp(0,3);
+	double m10 = cp(1,0); double m11 = cp(1,1); double m12 = cp(1,2); double m13 = cp(1,3);
+	double m20 = cp(2,0); double m21 = cp(2,1); double m22 = cp(2,2); double m23 = cp(2,3);
+
+	double tx	= m00*x + m01*y + m02*z + m03;
+	double ty	= m10*x + m11*y + m12*z + m13;
+	double tz	= m20*x + m21*y + m22*z + m23;
+    x = tx;
+    y = ty;
+    z = tz;
+
+	double tnx	= m00*nx + m01*ny + m02*nz;
+	double tny	= m10*nx + m11*ny + m12*nz;
+	double tnz	= m20*nx + m21*ny + m22*nz;
+    nx = tnx;
+    ny = tny;
+    nz = tnz;
+}
+
+double superpoint::angle(superpoint p){return nx*p.nx + ny*p.ny + nz*p.nz;}
+double superpoint::distance(superpoint p){
+	double signval = mysign(z-p.z);
+	double dx = p.x-x;
+	double dy = p.y-y;
+	double dz = p.z-z;
+	double pdx = p.nx*dx;
+	double pdy = p.ny*dy;
+	double pdz = p.nz*dz;
+
+//	printf("superpoint::distance -> %1.1f\n",signval);
+//	printf("dx %8.8f = (%8.8f - %8.8f)\n",dx,p.x,x);
+//	printf("dy %8.8f = (%8.8f - %8.8f)\n",dy,p.y,y);
+//	printf("dz %8.8f = (%8.8f - %8.8f)\n",dz,p.z,z);
+//	printf("--\n");
+//	printf("pdx %8.8f = (%8.8f * %8.8f)\n",pdx,p.nx,dx);
+//	printf("pdy %8.8f = (%8.8f * %8.8f)\n",pdy,p.ny,dy);
+//	printf("pdz %8.8f = (%8.8f * %8.8f)\n",pdz,p.nz,dz);
+//	printf("sum: %8.8f\n",pdx+pdy+pdz);
+//	printf("superpoint::distance -> %1.1f * (%8.8f + %8.8f + %8.8f) from %8.8f = (%8.8f - %8.8f), %8.8f = (%8.8f - %8.8f), %8.8f = (%8.8f - %8.8f)\n",signval,pdx,pdy,pdz,dx,x,p.x,dy,y,p.y,dz,z,p.z);
+	return signval*fabs(pdx+pdy+pdz);
+	//return mysign(z-p.z)*fabs(nx*(x-p.x) + ny*(y-p.y) + nz*(z-p.z));//dst_z-tz;//mysign(dst_z-tz)*fabs(tnx*(dst_x-tx) + tny*(dst_y-ty) + tnz*(dst_z-tz));
 }
 
 }

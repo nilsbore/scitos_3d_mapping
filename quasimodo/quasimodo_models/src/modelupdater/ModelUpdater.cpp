@@ -2703,37 +2703,38 @@ void ModelUpdater::getDynamicWeights(bool store_distance, std::vector<double> & 
 	}
 }
 
-void addReprojections(Matrix4d p, RGBDFrame* frame1, std::vector<superpoint> & tframesp1_test, std::vector<superpoint> & framesp1, RGBDFrame* frame2, std::vector<superpoint> & framesp2){//, int offset1, int offset2, std::vector< std::vector<int> > & interframe_connectionId, std::vector< std::vector<float> > & interframe_connectionStrength, double debugg){
-
+void addReprojections(
+        Matrix4d p,
+        DistanceWeightFunction2 * dfunc, DistanceWeightFunction2 * nfunc,
+        std::vector< std::vector<double> > & distances, std::vector< std::vector<superpoint> > & points,
+        RGBDFrame* frame1, std::vector<superpoint> & framesp1_test, std::vector<superpoint> & framesp1,
+        RGBDFrame* frame2, std::vector<superpoint> & framesp2,
+        int offset1, int offset2,
+        std::vector< std::vector<int> > &   interframe_connectionId,
+        std::vector< std::vector<float> > & interframe_connectionStrength,
+        int debugg){
 	unsigned char * src_detdata = (unsigned char*)(frame1->det_dilate.data);
 	unsigned char * dst_detdata = (unsigned char*)(frame2->det_dilate.data);
 
-	std::vector<superpoint> & framesp1_test		= tframesp1_test;//frame1->getSuperPoints(Eigen::Matrix4d::Identity(),10,false);
+    Matrix4d pinv = p.inverse();
+
 	std::vector<ReprojectionResult> rr_vec_test	= frame2->getReprojections(framesp1_test,p,0,false,false);
-	double inlierratio = double(rr_vec_test.size())/double(framesp1_test.size());
-	if( inlierratio < 0.01 ){return ;}
+    if( double(rr_vec_test.size())/double(framesp1_test.size()) < 0.01 ){return ;}
 
-
-	//std::vector<ReprojectionResult> rr_vec	= frame2->getReprojections(framesp1,p,0,false);
 	std::vector<ReprojectionResult> rr_vec	= frame2->getReprojections(framesp1,p,0,false,true);
-	inlierratio = double(rr_vec.size())/double(framesp1.size());
 	unsigned long nr_rr = rr_vec.size();
 
-
-//	double threshold = 0;
-//	if(!store_distance){
-//		threshold = pow(10.0*dfunc->getNoise(),2);
-//	}
+    double threshold = pow(10.0*dfunc->getNoise(),2);
 
 	for(unsigned long ind = 0; ind < nr_rr;ind++){
 
 		ReprojectionResult & rr = rr_vec[ind];
 		unsigned int src_ind = rr.src_ind;
-		superpoint & src_p = framesp1[src_ind];
+		superpoint src_p = framesp1[src_ind];
 		if(src_p.z < 0.0){continue;}
-/*
 		unsigned int dst_ind = rr.dst_ind;
-		superpoint & dst_p = framesp2[dst_ind];
+        superpoint dst_p = framesp2[dst_ind];
+
 		double src_variance = 1.0/src_p.point_information;
 		double dst_variance = 1.0/dst_p.point_information;
 		double total_variance = src_variance+dst_variance;
@@ -2741,99 +2742,80 @@ void addReprojections(Matrix4d p, RGBDFrame* frame1, std::vector<superpoint> & t
 		double rz = rr.residualZ;
 		double d = rz/total_stdiv;
 		double surface_angle = rr.angle;
-		if(store_distance){
-			dvec.push_back(d);
-			nvec.push_back(1-surface_angle);
-		}else{
-			double dE2 = rr.residualE2/total_stdiv;
-			double p_overlap_angle = nfunc->getProb(1-surface_angle);
-			double p_overlap = dfunc->getProb(d);
-			double p_occlusion = dfunc->getProbInfront(d);//std::max(1 - 1e-6,std::max(1e-6,dfunc->getProbInfront(d)));
-//			dfunc->getProbInfront(d,dst_p.z);
-//			double p_occlusion = dfunc->getProbInfront(d,src_p.z/total_stdiv);//std::max(1 - 1e-6,std::max(1e-6,dfunc->getProbInfront(d)));
 
+        double dE2 = rr.residualE2/total_stdiv;
+        double p_overlap_angle = nfunc->getProb(1-surface_angle);
+        double p_overlap = dfunc->getProb(d);
+        p_overlap *= p_overlap_angle;
 
-			//p_occlusion += p_overlap*(1-p_overlap_angle);
-			p_overlap *= p_overlap_angle;
+//        if(p_overlap > 0.001 && offset1 >= 0 && offset2 >= 0 && dE2 < threshold){
+//            interframe_connectionId[offset1+src_ind].push_back(offset2+dst_ind);
+//            interframe_connectionStrength[offset1+src_ind].push_back(-log(1-p_overlap));
+//        }
 
+        if(dst_detdata[dst_ind] != 0){continue;}
+        if(src_detdata[src_ind] != 0){continue;}
 
-			if(p_overlap > 0.001 && offset1 >= 0 && offset2 >= 0 && dE2 < threshold){
-				interframe_connectionId[offset1+src_ind].push_back(offset2+dst_ind);
-				interframe_connectionStrength[offset1+src_ind].push_back(-log(1-p_overlap));
-			}
+		dst_p.transform(pinv);
+		points[src_ind].push_back(dst_p);
+		distances[src_ind].push_back(rz);
 
-			if(debugg){
-				src_cloud->points[src_ind].r = 255.0 * p_overlap;
-				src_cloud->points[src_ind].g = 255.0 * p_occlusion;
-				src_cloud->points[src_ind].b = 0;
-			}
+//		src_p.transform(p);
+//		double dis = dst_p.distance(src_p);
+//		double ang = dst_p.angle(src_p);
+//		printf("distance: new: %5.5f old: %5.5f diff: %5.5f)\n",dis,rr.residualZ,dis-rr.residualZ);
+//		printf("angle: new: %5.5f old: %5.5f diff: %5.5f)\n",ang,rr.angle,ang-rr.angle);
 
-			if(dst_detdata[dst_ind] != 0){continue;}
-			if(src_detdata[src_ind] != 0){continue;}
-			//double p2pd = 0;
-
-			//double olp = overlaps[src_ind];
-			//double nolp = 1-olp;
-			//nolp *= (1-p_overlap);
-
-			//overlaps[src_ind] = std::min(0.999999999,1-nolp);
-
-			//double p_behind = p_overlap+p_occlusion;//1-p_overlap-p_occlusion;
-			//double weight = p_overlap+p_occlusion;//1.0;
-			//occlusions[src_ind]     += weight*p_occlusion;//std::min(0.9,std::max(occlusions[src_ind],p_occlusion));
-			//notocclusions[src_ind]  += weight;
-
-
-
-			//double ocl = occlusions[src_ind];
-			//double nocl = 1-ocl;
-
-
-
-			//nocl *= (1-p_occlusion);
-
-			//occlusions[src_ind] = std::min(0.999999999,1-nocl);
-
-			overlaps[src_ind]   *= 1-p_overlap;
-			occlusions[src_ind] *= 1-p_occlusion;
-			notocclusions[src_ind] *= 1-p_overlap-p_occlusion;
-			//notocclusions[src_ind] = 1;
-		}
-		*/
+//		//printf("(%i %i) -> ",src_ind,dst_ind);
+//		//printf("angle: (new: %5.5f old: %5.5f diff: %5.5f) ",src_p.angle(dst_p),surface_angle,src_p.angle(dst_p)-surface_angle);
+//		//printf("d: (new: %5.5f old: %5.5f diff: %5.5f)",dis,d,dis-d);
+//		printf("\n");
+//		src_p.print();
+//		dst_p.print();
+//		exit(0);
 	}
-	/*
-	currentString = "part4";
-	if(benchtime.count(currentString) == 0){benchtime[currentString] = 0;}
-	benchtime[currentString] += getTime() - startTime;
-	startTime = getTime();
+}
 
-	currentString = "total_getDyn";
-	if(benchtime.count(currentString) == 0){benchtime[currentString] = 0;}
-	benchtime[currentString] += getTime() - totalstartTime;
-	startTime = getTime();
+void aggregateProbs( DistanceWeightFunction2 * dfunc, DistanceWeightFunction2 * nfunc, std::vector<superpoint> & framesp1,
+		std::vector< std::vector<double> > & distances, std::vector< std::vector<superpoint> > & points,
+		double * overlaps, double * occlusions, double * notocclusions,
+		int debugg = 0){
+	printf("aggregateProbs\n");
+	unsigned int nrp = distances.size();
+	for(unsigned int src_ind = 0; src_ind < nrp; src_ind++){
+		superpoint & src_p = framesp1[src_ind];
+		bool show = (rand() % 1000) == 0;
+		std::vector<superpoint> & dst_points = points[src_ind];
+		std::vector<double> & dst_distances = distances[src_ind];
+		unsigned int dst_nrp = dst_points.size();
+		for(unsigned int dst_ind = 0; dst_ind < dst_nrp; dst_ind++){
+			superpoint & dst_p = dst_points[dst_ind];
 
-	if(false && !store_distance){
-		cv::Mat overlapsimg;
-		overlapsimg.create(frame1->camera->height,frame1->camera->width,CV_32FC3);
-		float * overlapsimgdata = (float*)overlapsimg.data;
-		cv::Mat occlusionsimg;
-		occlusionsimg.create(frame1->camera->height,frame1->camera->width,CV_32FC3);
-		float * occlusionsimgdata = (float*)occlusionsimg.data;
-		for(unsigned long ind = 0; ind < frame1->camera->height*frame1->camera->width;ind++){
-			overlapsimgdata[3*ind+0] = overlaps[ind];
-			overlapsimgdata[3*ind+1] = overlaps[ind];
-			overlapsimgdata[3*ind+2] = overlaps[ind];
+			double src_variance = 1.0/src_p.point_information;
+			double dst_variance = 1.0/dst_p.point_information;
+			double total_variance = src_variance+dst_variance;
+			double total_stdiv = sqrt(total_variance);
+			//double rz = src_p.distance(dst_p);
+			double d1 = src_p.distance(dst_p)/total_stdiv;
+			double d2 = dst_p.distance(src_p)/total_stdiv;
+			double d_prev = dst_distances[dst_ind];
+			if(show){
+				printf("(%5.5f %5.5f %5.5f) ",d1,d2,d_prev);
+			}
+//			double surface_angle = rr.angle;
 
-			occlusionsimgdata[3*ind+0] = occlusions[ind]/std::max(1.0,notocclusions[ind]);
-			occlusionsimgdata[3*ind+1] = occlusionsimgdata[3*ind+0];
-			occlusionsimgdata[3*ind+2] = occlusionsimgdata[3*ind+0];
+//			double dE2 = rr.residualE2/total_stdiv;
+//			double p_overlap_angle = nfunc->getProb(1-surface_angle);
+//			double p_overlap = dfunc->getProb(d);
+//			p_overlap *= p_overlap_angle;
 		}
-		cv::namedWindow( "rgb",				cv::WINDOW_AUTOSIZE );	cv::imshow( "rgb",			frame1->rgb );
-		cv::namedWindow( "occlusionsimg",	cv::WINDOW_AUTOSIZE );	cv::imshow( "occlusionsimg",occlusionsimg );
-		cv::namedWindow( "overlapsimg",		cv::WINDOW_AUTOSIZE );	cv::imshow( "overlapsimg",	overlapsimg );
-		cv::waitKey(0);
+
+		if(show){
+			printf("\n%i -> %10.10f\n",src_ind,overlaps[src_ind]);
+		}
 	}
-*/
+
+	exit(0);
 }
 
 void ModelUpdater::computeMovingDynamicStatic(std::vector<cv::Mat> & movemask, std::vector<cv::Mat> & dynmask, vector<Matrix4d> bgcp, vector<RGBDFrame*> bgcf, vector<Matrix4d> poses, vector<RGBDFrame*> frames, bool debugg, std::string savePath){
@@ -3051,7 +3033,6 @@ void ModelUpdater::computeMovingDynamicStatic(std::vector<cv::Mat> & movemask, s
 		startTime = getTime();
 		for(unsigned int j = 0; j < frames.size(); j++){
 			if(i == j){continue;}
-
 			Eigen::Matrix4d p = poses[i].inverse() * poses[j];
 			getDynamicWeights(false,dvec,nvec,dfunc,nfunc,p.inverse(),frames[i],framesp_test[i],framesp[i], current_overlaps, current_occlusions, current_notocclusions, frames[j],framesp[j],offsets[i],offsets[j],interframe_connectionId,interframe_connectionStrength,false);
 		}
@@ -3059,9 +3040,29 @@ void ModelUpdater::computeMovingDynamicStatic(std::vector<cv::Mat> & movemask, s
 
 		for(unsigned int j = 0; j < bgcf.size(); j++){
 			Eigen::Matrix4d p = poses[i].inverse() * bgcp[j];
-
 			getDynamicWeights(false,dvec,nvec,dfunc,nfunc,p.inverse(),frames[i],framesp_test[i],framesp[i], bg_overlaps, bg_occlusions, bg_notocclusions, bgcf[j],bgsp[j],-1,-1,interframe_connectionId,interframe_connectionStrength,false);
 		}
+
+		std::vector< std::vector<double> > bg_distances;
+		std::vector< std::vector<superpoint> > bg_points;
+		bg_distances.resize(640*480);
+		bg_points.resize(640*480);
+		for(unsigned int j = 0; j < bgcf.size(); j++){
+			Eigen::Matrix4d p = poses[i].inverse() * bgcp[j];
+			addReprojections(p.inverse(),dfunc,nfunc,bg_distances,bg_points,frames[i],framesp_test[i],framesp[i], bgcf[j],bgsp[j],-1,-1,interframe_connectionId,interframe_connectionStrength,0);
+		}
+
+		aggregateProbs(dfunc,nfunc,framesp[i],bg_distances, bg_points,bg_overlaps, bg_occlusions, bg_notocclusions);
+//		void addReprojections(
+//				Matrix4d p,
+//				DistanceWeightFunction2 * dfunc, DistanceWeightFunction2 * nfunc,
+//				std::vector< std::vector<double> > & distances, std::vector< std::vector<superpoint> > & points,
+//				RGBDFrame* frame1, std::vector<superpoint> & framesp1_test, std::vector<superpoint> & framesp1,
+//				RGBDFrame* frame2, std::vector<superpoint> & framesp2,
+//				int offset1, int offset2,
+//				std::vector< std::vector<int> > &   interframe_connectionId,
+//				std::vector< std::vector<float> > & interframe_connectionStrength,
+//				int debugg){
 
 		for(unsigned int j = 0; j < nr_pixels; j++){
 			bg_occlusions[j]		= std::min(0.99999,1-bg_occlusions[j]);

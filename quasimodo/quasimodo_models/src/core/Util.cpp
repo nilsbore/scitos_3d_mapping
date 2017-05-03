@@ -134,10 +134,6 @@ namespace reglib{
 		return cloud_ptr;
 	}
 
-	double mysign(double v){
-		if(v < 0){return -1;}
-		return 1;
-	}
 
 	double getTime(){
 		struct timeval start1;
