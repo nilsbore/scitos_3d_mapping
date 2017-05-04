@@ -33,6 +33,7 @@ public:
 	int last_update_frame_id;
     bool is_boundry;
 
+	superpoint(bool dummy);
     superpoint(Eigen::Vector3f p = Eigen::Vector3f(0,0,0), Eigen::Vector3f n = Eigen::Vector3f(0,0,0), Eigen::VectorXf f = Eigen::VectorXf(3), double pi = 1, double fi = 1, int id = 0, bool is_boundry_ = false);
 	~superpoint();
     void merge(superpoint p, double weight = 1);

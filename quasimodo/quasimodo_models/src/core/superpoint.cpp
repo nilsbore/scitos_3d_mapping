@@ -9,6 +9,27 @@ double mysign(double v){
 	return 1;
 }
 
+superpoint::superpoint(bool dummy){
+	x	= 0;
+	y	= 0;
+	z	= 0;
+
+	nx	= 0;
+	ny	= 0;
+	nz	= -1;
+
+	r	= 0;
+	g	= 0;
+	b	= 0;
+
+	point_information = 0;
+	normal_information = 0;
+	colour_information = 0;
+	last_update_frame_id = 0;
+
+	is_boundry = true;
+}
+
 superpoint::superpoint(Eigen::Vector3f p, Eigen::Vector3f n, Eigen::VectorXf f, double pi, double fi, int id, bool is_boundry_){
     x	= p(0);
     y	= p(1);

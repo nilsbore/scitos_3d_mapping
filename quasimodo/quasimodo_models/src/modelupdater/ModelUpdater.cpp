@@ -2776,6 +2776,86 @@ void addReprojections(
 	}
 }
 
+std::vector< std::vector<int> > getClusters(std::vector<double> & current_overlaps, unsigned int nrp){
+	std::vector< bool > in_cluster;
+	std::vector< std::vector<int> > clusters;
+	return clusters;
+}
+
+//void getScore(double & overlap, double & occlusion, double & sum, std::vector< int > clusters, int nr_clusters, std::vector<double> & current_overlaps, unsigned int nrp){
+//	std::vector< double > agg;
+//	agg.resize(nr_clusters);
+//}
+
+void getScore(DistanceWeightFunction2 * dfunc, DistanceWeightFunction2 * nfunc, double & overlap, double & occlusion, double & sum, std::vector< int > clusters, int nr_clusters, std::vector<double> & current_overlaps, unsigned int nrp, superpoint & src_p, std::vector<superpoint> & points, std::vector<double> & distances){
+	std::vector< double > agg_d;
+	agg_d.resize(nr_clusters);
+
+	std::vector< superpoint > agg_points;
+	agg_points.resize(nr_clusters);
+
+	double src_variance = 1.0/src_p.point_information;
+
+	printf("clusters = [");
+	for(unsigned int i	= 0; i < nrp; i++){printf("%i ",clusters[i]);}
+	printf("];\n");
+
+	double w = 1;
+	for(unsigned int i	= 0; i < nrp; i++){
+		int id = clusters[i];
+		for(unsigned int j = i+1; j < nrp; j++){
+			//printf("i: %i j:%i ->",i,j);
+			if(id == clusters[j]){
+				w *=       current_overlaps[nrp*i+j];
+				//printf("same cluster -> w: %f current_overlap: %f\n",w,current_overlaps[nrp*i+j]);
+			}else{
+				w *= 1.0 - current_overlaps[nrp*i+j];
+				//printf("different cluster -> w: %f current_overlap: %f\n",w,current_overlaps[nrp*i+j]);
+			}
+		}
+	}
+	printf("w: %f\n",w);
+
+
+
+//	for(unsigned long i = 0; i < nr_clusters; i++){
+//		agg_d[i]		= 0;
+//		agg_points[i]	= superpoint(true);
+//	}
+
+//	for(unsigned long i	= 0; i < nrp; i++){
+//		unsigned int id		= clusters[i];
+//		superpoint & dst_p	= points[i];
+//		agg_d[id]			+= distances[i]*dst_p.point_information;
+//		agg_points[id].merge(points[i]);
+//	}
+
+//	double p_overlap_agg	= 1.0;
+//	double p_occlusion_agg	= 1.0;
+//	for(unsigned long id	= 0; id < nr_clusters; id++){
+//		superpoint & dst_p		= agg_points[id];
+//		double dst_variance		= 1.0/dst_p.point_information;
+//		double total_variance	= src_variance+dst_variance;
+//		double total_stdiv		= sqrt(total_variance);
+//		double d				= agg_d[id]/total_stdiv;
+//		double surface_angle	= dst_p.angle(src_p);
+//		double p_overlap_angle	= nfunc->getProb(1-surface_angle);
+//		double p_overlap		= dfunc->getProb(d);
+//		double p_occlusion		= dfunc->getProbInfront(d);
+//		p_overlap				*= p_overlap_angle;
+//		p_overlap_agg			*= 1-p_overlap;
+//		p_occlusion_agg			*= 1-p_occlusion;
+//	}
+
+//	overlap += w*p_overlap_agg;
+//	occlusion += w*p_occlusion_agg;
+	sum += w;
+
+	printf("w: %f overlap: %f occlusion: %f sum: %f\n",w,overlap,occlusion,sum);
+
+}
+
+
 void aggregateProbs( DistanceWeightFunction2 * dfunc, DistanceWeightFunction2 * nfunc, std::vector<superpoint> & framesp1,
 		std::vector< std::vector<double> > & distances, std::vector< std::vector<superpoint> > & points,
 		double * overlaps, double * occlusions, double * notocclusions,
@@ -2785,34 +2865,207 @@ void aggregateProbs( DistanceWeightFunction2 * dfunc, DistanceWeightFunction2 * 
 	for(unsigned int src_ind = 0; src_ind < nrp; src_ind++){
 		superpoint & src_p = framesp1[src_ind];
 		bool show = (rand() % 1000) == 0;
+        double src_variance = 1.0/src_p.point_information;
+
 		std::vector<superpoint> & dst_points = points[src_ind];
 		std::vector<double> & dst_distances = distances[src_ind];
 		unsigned int dst_nrp = dst_points.size();
-		for(unsigned int dst_ind = 0; dst_ind < dst_nrp; dst_ind++){
-			superpoint & dst_p = dst_points[dst_ind];
 
-			double src_variance = 1.0/src_p.point_information;
-			double dst_variance = 1.0/dst_p.point_information;
-			double total_variance = src_variance+dst_variance;
-			double total_stdiv = sqrt(total_variance);
-			//double rz = src_p.distance(dst_p);
-			double d1 = src_p.distance(dst_p)/total_stdiv;
-			double d2 = dst_p.distance(src_p)/total_stdiv;
-			double d_prev = dst_distances[dst_ind];
-			if(show){
-				printf("(%5.5f %5.5f %5.5f) ",d1,d2,d_prev);
+        std::vector<double> current_overlaps;
+        current_overlaps.resize(dst_nrp*dst_nrp);
+        for(unsigned int i = 0; i < dst_nrp; i++){
+            current_overlaps[dst_nrp*i+i] = 0;
+            superpoint & p1 = dst_points[i];
+            double p1_variance = 1.0/p1.point_information;
+            double d1 = dst_distances[i];
+            for(unsigned int j = i+1; j < dst_nrp; j++){
+                superpoint & p2 = dst_points[j];
+                double p2_variance = 1.0/p2.point_information;
+                double total_variance = p1_variance+p2_variance+src_variance;
+                double total_stdiv = sqrt(total_variance);
+
+                double d2 = dst_distances[j];
+
+                double d = (d1-d2)/total_stdiv;
+                double surface_angle = p1.angle(p2);
+
+                double p_overlap_angle = nfunc->getProb(1-surface_angle);
+                double p_overlap = dfunc->getProb(d);
+                p_overlap *= p_overlap_angle;
+                current_overlaps[dst_nrp*i+j] = p_overlap;
+                current_overlaps[dst_nrp*j+i] = p_overlap;
+            }
+        }
+
+		double p_overlap_agg = 1.0;
+		double p_occlusion_agg = 1.0;
+		switch(dst_nrp) {
+		case 0: {
+			p_overlap_agg	= 0.0;
+			p_occlusion_agg = 0.0;
+		}break;
+		case 1: {
+			unsigned int dst_ind = 0;
+			superpoint & dst_p		= dst_points[dst_ind];
+			double src_variance		= 1.0/src_p.point_information;
+			double dst_variance		= 1.0/dst_p.point_information;
+			double total_variance	= src_variance+dst_variance;
+			double total_stdiv		= sqrt(total_variance);
+			double d				= dst_distances[dst_ind]/total_stdiv;
+			double surface_angle	= dst_p.angle(src_p);
+			double p_overlap_angle	= nfunc->getProb(1-surface_angle);
+			double p_overlap		= dfunc->getProb(d);
+			p_occlusion_agg			= dfunc->getProbInfront(d);
+			p_overlap_agg			= p_overlap * p_overlap_angle;
+		}break;
+		case 2: {
+			std::vector<int> clusters;
+			clusters.resize(dst_nrp);
+
+//			double olp = 0;
+//			double ocl = 0;
+//			double sum = 0;
+
+//			clusters[0] = 0;
+//			clusters[1] = 0;
+//			getScore(dfunc,nfunc,olp,ocl,sum,clusters,1,current_overlaps,dst_nrp,src_p,dst_points,dst_distances);
+
+//			clusters[0] = 0;
+//			clusters[1] = 1;
+//			getScore(dfunc,nfunc,olp,ocl,sum,clusters,2,current_overlaps,dst_nrp,src_p,dst_points,dst_distances);
+
+
+
+//			printf("%i -> old: %10.10f new: %10.10f diff: %10.10f\n",src_ind,overlaps[src_ind],1-p_overlap_agg,overlaps[src_ind]-(1-p_overlap_agg));
+//			for(unsigned int i = 0; i < dst_nrp; i++){
+//				for(unsigned int j = 0; j < dst_nrp; j++){
+//					printf("%3.3f ",current_overlaps[dst_nrp*i+j]);
+//				}
+//				printf("\n");
+//			}
+			exit(0);
+
+
+		}break;
+		case 3: {
+			std::vector<int> clusters;
+			clusters.resize(dst_nrp);
+
+			double olp = 0;
+			double ocl = 0;
+			double sum = 0;
+
+			clusters[0] = 0;
+			clusters[1] = 0;
+			clusters[2] = 0;
+			getScore(dfunc,nfunc,olp,ocl,sum,clusters,1,current_overlaps,dst_nrp,src_p,dst_points,dst_distances);
+
+			clusters[0] = 1;
+			clusters[1] = 1;
+			clusters[2] = 1;
+			getScore(dfunc,nfunc,olp,ocl,sum,clusters,1,current_overlaps,dst_nrp,src_p,dst_points,dst_distances);
+
+			clusters[0] = 1;
+			clusters[1] = 0;
+			clusters[2] = 0;
+			getScore(dfunc,nfunc,olp,ocl,sum,clusters,2,current_overlaps,dst_nrp,src_p,dst_points,dst_distances);
+
+			clusters[0] = 0;
+			clusters[1] = 1;
+			clusters[2] = 1;
+			getScore(dfunc,nfunc,olp,ocl,sum,clusters,2,current_overlaps,dst_nrp,src_p,dst_points,dst_distances);
+
+			clusters[0] = 0;
+			clusters[1] = 1;
+			clusters[2] = 0;
+			getScore(dfunc,nfunc,olp,ocl,sum,clusters,2,current_overlaps,dst_nrp,src_p,dst_points,dst_distances);
+
+			clusters[0] = 1;
+			clusters[1] = 0;
+			clusters[2] = 1;
+			getScore(dfunc,nfunc,olp,ocl,sum,clusters,2,current_overlaps,dst_nrp,src_p,dst_points,dst_distances);
+
+			clusters[0] = 0;
+			clusters[1] = 0;
+			clusters[2] = 1;
+			getScore(dfunc,nfunc,olp,ocl,sum,clusters,2,current_overlaps,dst_nrp,src_p,dst_points,dst_distances);
+
+			clusters[0] = 1;
+			clusters[1] = 1;
+			clusters[2] = 0;
+			getScore(dfunc,nfunc,olp,ocl,sum,clusters,2,current_overlaps,dst_nrp,src_p,dst_points,dst_distances);
+
+			clusters[0] = 0;
+			clusters[1] = 1;
+			clusters[2] = 2;
+			getScore(dfunc,nfunc,olp,ocl,sum,clusters,3,current_overlaps,dst_nrp,src_p,dst_points,dst_distances);
+
+			clusters[0] = 0;
+			clusters[1] = 2;
+			clusters[2] = 1;
+			getScore(dfunc,nfunc,olp,ocl,sum,clusters,3,current_overlaps,dst_nrp,src_p,dst_points,dst_distances);
+
+			clusters[0] = 1;
+			clusters[1] = 0;
+			clusters[2] = 2;
+			getScore(dfunc,nfunc,olp,ocl,sum,clusters,3,current_overlaps,dst_nrp,src_p,dst_points,dst_distances);
+
+			clusters[0] = 2;
+			clusters[1] = 0;
+			clusters[2] = 1;
+			getScore(dfunc,nfunc,olp,ocl,sum,clusters,3,current_overlaps,dst_nrp,src_p,dst_points,dst_distances);
+
+			clusters[0] = 2;
+			clusters[1] = 1;
+			clusters[2] = 0;
+			getScore(dfunc,nfunc,olp,ocl,sum,clusters,3,current_overlaps,dst_nrp,src_p,dst_points,dst_distances);
+
+			clusters[0] = 1;
+			clusters[1] = 2;
+			clusters[2] = 0;
+			getScore(dfunc,nfunc,olp,ocl,sum,clusters,3,current_overlaps,dst_nrp,src_p,dst_points,dst_distances);
+
+			printf("%i -> old: %10.10f new: %10.10f diff: %10.10f\n",src_ind,overlaps[src_ind],1-p_overlap_agg,overlaps[src_ind]-(1-p_overlap_agg));
+			for(unsigned int i = 0; i < dst_nrp; i++){
+				for(unsigned int j = 0; j < dst_nrp; j++){
+					printf("%3.3f ",current_overlaps[dst_nrp*i+j]);
+				}
+				printf("\n");
 			}
-//			double surface_angle = rr.angle;
+			exit(0);
+		}break;
 
-//			double dE2 = rr.residualE2/total_stdiv;
-//			double p_overlap_angle = nfunc->getProb(1-surface_angle);
-//			double p_overlap = dfunc->getProb(d);
-//			p_overlap *= p_overlap_angle;
+		default: {} break;
 		}
+
+
+//		for(unsigned int dst_ind = 0; dst_ind < dst_nrp; dst_ind++){
+//			superpoint & dst_p = dst_points[dst_ind];
+//            double src_variance = 1.0/src_p.point_information;
+//			double dst_variance = 1.0/dst_p.point_information;
+//			double total_variance = src_variance+dst_variance;
+//			double total_stdiv = sqrt(total_variance);
+//            double d = dst_distances[dst_ind]/total_stdiv;
+//            double surface_angle = dst_p.angle(src_p);
+//            double p_overlap_angle = nfunc->getProb(1-surface_angle);
+//            double p_overlap = dfunc->getProb(d);
+//            double p_occlusion = dfunc->getProbInfront(d);
+//            p_overlap *= p_overlap_angle;
+//            p_overlap_agg   *= 1-p_overlap;
+//            p_occlusion_agg *= 1-p_occlusion;
+//		}
 
 		if(show){
-			printf("\n%i -> %10.10f\n",src_ind,overlaps[src_ind]);
-		}
+			//src_p.print();
+			printf("%i -> old: %10.10f new: %10.10f diff: %10.10f\n",src_ind,overlaps[src_ind],1-p_overlap_agg,overlaps[src_ind]-(1-p_overlap_agg));
+            for(unsigned int i = 0; i < dst_nrp; i++){
+                for(unsigned int j = 0; j < dst_nrp; j++){
+                    printf("%3.3f ",current_overlaps[dst_nrp*i+j]);
+                }
+                printf("\n");
+            }
+			if(dst_nrp >= 2){exit(0);}
+        }
 	}
 
 	exit(0);
