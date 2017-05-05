@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <package>
   <name>siftgpu</name>
-  <version>0.1.0</version>
+  <version>0.0.12</version>
   <description>Catkinized SiftGPU (CUDA version)</description>
   <license>non-profit license University of North Carolina</license>
   <url type="website">http://cs.unc.edu/~ccwu/siftgpu/</url>

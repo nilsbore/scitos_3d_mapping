@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <package>
   <name>observation_registration_launcher</name>
-  <version>0.0.0</version>
+  <version>0.0.12</version>
   <description>The observation_registration_launcher package</description>
   <maintainer email="raambrus@kth.se">Rares Ambrus</maintainer>
   <license>MIT</license>
