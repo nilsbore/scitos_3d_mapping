@@ -127,6 +127,7 @@ def insert_model_cb(sreq):
         return False
 
     new_obj.vocabulary_id = resp.id
+    new_obj.object_id = object_id
     msg_store.update_id(object_id, new_obj)
     # Now, simply save this in mongodb, or maybe extract features first?
 
@@ -159,6 +160,57 @@ def remove_model_cb(req):
 
     return resp
 
+def control_models_cb(req):
+
+    msg_store = MessageStoreProxy(database='world_state', collection='quasimodo')
+    objs = msg_store.query(fused_world_state_object._type, message_query={"removed_at":""})
+    
+    resp = insert_modelResponse()
+
+    if len(objs) == 0:
+        if len(req.vocabulary_ids) == 0:
+            resp.control_good = True
+        else:
+            resp.control_good = False
+        return resp
+
+    objects,meta = zip(*objs)
+    vocabulary_ids = [obj.vocabulary_id for obj in objects] 
+
+    for vid in vocabulary_ids:
+        if vid not in req.vocabulary_ids:
+            resp.control_good = False
+            return resp
+
+    for vid in req.vocabulary_ids:
+        if vid not in vocabulary_ids:
+            resp.control_good = False
+            return resp
+
+    resp.control_good = True
+    return resp
+
+def clear_models_cb(req):
+
+    msg_store = MessageStoreProxy(database='world_state', collection='quasimodo')
+    objs = msg_store.query(fused_world_state_object._type, message_query={"removed_at":""})
+
+    if len(objs) == 0:
+        resp = insert_modelResponse()
+        return resp
+
+    objects,meta = zip(*objs)
+
+    for obj, m in zip(objects, meta):
+        now = datetime.now()
+        obj.removed_at = now.strftime("%Y-%m-%d %H:%M:%S")
+        print "Removing", m['_id']
+        msg_store.update_id(m['_id'], obj) 
+    
+    resp = insert_modelResponse()
+
+    return resp
+    
 def service_callback(req):
 
     if req.action == insert_modelRequest.REMOVE:
@@ -168,10 +220,18 @@ def service_callback(req):
     elif req.action == insert_modelRequest.INSERT:
         resp = insert_model_cb(req)
         if not resp:
-            print "Failed to remove model..."
+            print "Failed to insert model..."
+    elif req.action == insert_modelRequest.CONTROL:
+        resp = control_models_cb(req)
+        if not resp:
+            print "Failed to control models..."
+    elif req.action == insert_modelRequest.CLEAR:
+        resp = clear_models_cb(req)
+        if not resp:
+            print "Failed to clear models..."
     else:
         resp = False
-        print "Service options are 1: INSERT and 2: REMOVE"
+        print "Service options are 1: INSERT, 2: REMOVE, 3: CONTROL, 4: CLEAR"
 
     empty_msg = Empty()
     pub.publish(empty_msg)
