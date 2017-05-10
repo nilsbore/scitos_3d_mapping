@@ -11,7 +11,7 @@ RegistrationRandom::RegistrationRandom(unsigned int steps){
 	only_initial_guess		= false;
     visualizationLvl		= 0;
     refinement				= new RegistrationRefinement();
-    refinement2				= new RegistrationRefinement2();
+	//refinement2				= new RegistrationRefinement2();
 
 	steprx		= stepry	= steprz	= steps;
 	start_rx	= start_ry	= start_rz	= 0;
@@ -32,12 +32,12 @@ RegistrationRandom::~RegistrationRandom(){
 void RegistrationRandom::setSrc(std::vector<superpoint> & src_){
     src = src_;
     refinement->setSrc(src_);
-    refinement2->setSrc(src_);
+	//refinement2->setSrc(src_);
 }
 void RegistrationRandom::setDst(std::vector<superpoint> & dst_){
     dst = dst_;
     refinement->setDst(dst_);
-    refinement2->setDst(dst_);
+	//refinement2->setDst(dst_);
 }
 
 double getTime(){
@@ -229,8 +229,11 @@ double startTime = getTime();
 
 	unsigned int nr_r = steprx*stepry*steprz*steptx*stepty*steptz;
 
+//	printf("R: %i %i %i T: %i %i %i -> %i\n",steprx,stepry,steprz,steptx,stepty,steptz,nr_r);
+//	exit(0);
+
     refinement->allow_regularization = true;
-    refinement2->allow_regularization = true;
+	//refinement2->allow_regularization = true;
 
 	unsigned int s_nr_data = src.size();
 
@@ -246,20 +249,20 @@ double startTime = getTime();
     refinement->target_points = 750;
     int stepxsmall = std::max(1,int(s_nr_data)/refinement->target_points);
 
-    refinement2->viewer = viewer;
-    refinement2->visualizationLvl = 0;
-    refinement2->target_points = 750;
+//    refinement2->viewer = viewer;
+//    refinement2->visualizationLvl = 0;
+//    refinement2->target_points = 750;
 
 	std::vector<FusionResults> fr_X;
 	fr_X.resize(nr_r);
 
     refinement->visualizationLvl = visualizationLvl;
-    refinement2->visualizationLvl = visualizationLvl;
+	//refinement2->visualizationLvl = visualizationLvl;
     //#pragma omp parallel for num_threads(8) schedule(dynamic)
     double e1 = 0;
-    double e2 = 0;
+	//double e2 = 0;
 	for(unsigned int r = 0; r < nr_r; r++){
-        printf("r: %i / %i\n",r+1,nr_r);
+	   // printf("r: %i / %i\n",r+1,nr_r);
 		double start = getTime();
 
 		double meantime = 999999999999;
@@ -269,10 +272,10 @@ double startTime = getTime();
             refinement->maxtime = 99999;
         }
 
-        refinement2->maxtime = 50000.0;
-        if(refinement2->visualizationLvl > 0){
-            refinement2->maxtime = 99999;
-        }
+//        refinement2->maxtime = 50000.0;
+//        if(refinement2->visualizationLvl > 0){
+//            refinement2->maxtime = 99999;
+//        }
 
 		Eigen::Affine3d randomrot = Eigen::Affine3d::Identity();
 		randomrot =	Eigen::AngleAxisd(rxs[r], Eigen::Vector3d::UnitX()) *
@@ -280,7 +283,7 @@ double startTime = getTime();
 				Eigen::AngleAxisd(rzs[r], Eigen::Vector3d::UnitZ());
 
 		Eigen::Affine3d current_guess = Ymean*randomrot*Xmean.inverse();//*Ymean;
-for(unsigned int test = 0; test < 1; test++){
+//for(unsigned int test = 0; test < 1; test++){
     //printf("TEST: %i\n",test);
         //double startR1 = getTime();
         FusionResults fr = refinement->getTransform(current_guess.matrix());
@@ -299,22 +302,22 @@ for(unsigned int test = 0; test < 1; test++){
         e1 += change_t + 2*change_r;
         }
 
-        //double startR2 = getTime();
-        FusionResults fr2 = refinement2->getTransform(current_guess.matrix());
-        {
-        Eigen::Matrix4d change = fr2.guess;
-        double change_t = 0;
-        double change_r = 0;
-        for(unsigned long k = 0; k < 3; k++){
-            change_t += change(k,3)*change(k,3);
-            for(unsigned long l = 0; l < 3; l++){
-                if(k == l){ change_r += fabs(1-change(k,l));}
-                else{		change_r += fabs(change(k,l));}
-            }
-        }
-        change_t = sqrt(change_t);
-        e2 += change_t + 2*change_r;
-}
+//        //double startR2 = getTime();
+//        FusionResults fr2 = refinement2->getTransform(current_guess.matrix());
+//        {
+//        Eigen::Matrix4d change = fr2.guess;
+//        double change_t = 0;
+//        double change_r = 0;
+//        for(unsigned long k = 0; k < 3; k++){
+//            change_t += change(k,3)*change(k,3);
+//            for(unsigned long l = 0; l < 3; l++){
+//                if(k == l){ change_r += fabs(1-change(k,l));}
+//                else{		change_r += fabs(change(k,l));}
+//            }
+//        }
+//        change_t = sqrt(change_t);
+//        e2 += change_t + 2*change_r;
+//}
         //double startR3 = getTime();
 
         //refinement2->printDebuggTimes();
@@ -322,26 +325,26 @@ for(unsigned int test = 0; test < 1; test++){
 //        printf("Time old: %5.5fs Time new: %5.5fs\n",startR2-startR1,startR3-startR2);
 //        std::cout << "Result old\n" << fr.guess << std::endl << std::endl;
 //        std::cout << "Result new\n" << fr2.guess << std::endl << std::endl;
-}
-        refinement->printDebuggTimes();
-        refinement2->printDebuggTimes();
-        printf("e1: %f e2: %f\n",e1,e2);
+//	}
+//        refinement->printDebuggTimes();
+//        refinement2->printDebuggTimes();
+//        printf("e1: %f e2: %f\n",e1,e2);
 //        exit(0);
 
-//#pragma omp critical
-//		{
-//			fr_X[r] = fr;
+#pragma omp critical
+		{
+			fr_X[r] = fr;
 
-//			double stoptime = getTime();
-//			sumtime += stoptime-start;
-//			if(!fr_X[r].timeout){
-//				sumtimeSum += stoptime-start;
-//				sumtimeOK++;
-//            }
-//            printf("meantime: %f\n",sumtimeSum/double(sumtimeOK+1.0));
-//		}
+			double stoptime = getTime();
+			sumtime += stoptime-start;
+			if(!fr_X[r].timeout){
+				sumtimeSum += stoptime-start;
+				sumtimeOK++;
+			}
+
+		}
 	}
-    exit(0);
+	printf("meantime: %f\n",sumtimeSum/double(sumtimeOK+1.0));
 
 //	printf("%s::%5.5fs\n",__PRETTY_FUNCTION__,getTime()-startTime);
 //	refinement->printDebuggTimes();

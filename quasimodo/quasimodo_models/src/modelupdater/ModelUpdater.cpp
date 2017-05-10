@@ -835,8 +835,8 @@ void ModelUpdater::testgetDynamicWeights(bool store_distance, std::vector<double
             double p_overlap = dfunc->getProb(d);
             //double p_occlusion = dfunc->getProbInfront(d);
             double p_occlusion = dfunc->getProbInfront(d,src_p.z);
-            printf("exit(0): %i\n",__LINE__);
-            exit(0);
+
+
 			double p_behind = 1-p_overlap-p_occlusion;
 
 			p_overlap *= p_overlap_angle;
@@ -884,7 +884,7 @@ void ModelUpdater::testgetDynamicWeights(bool store_distance, std::vector<double
 
 
 vector<vector < OcclusionScore > > ModelUpdater::computeOcclusionScore(vector<Model *> models, vector<Matrix4d> rps, int step, bool debugg){
-	//printf("computeOcclusionScore\n");
+	printf("computeOcclusionScore\n");
 	std::vector<double> dvec;
 	std::vector<double> nvec;
 	DistanceWeightFunction2 * dfunc;
@@ -958,8 +958,8 @@ vector<vector < OcclusionScore > > ModelUpdater::computeOcclusionScore(vector<Mo
 
 	dfunc->computeModel(dvec);
 
-	//	printf("dfunc->getNoise() = %f\n",dfunc->getNoise());
-	//	printf("%s :: %5.5f s :: %i\n",__FUNCTION__,getTime()-startTime,__LINE__);startTime = getTime();
+	printf("dfunc->getNoise() = %f\n",dfunc->getNoise());
+	printf("%s :: %5.5f s :: %i\n",__FUNCTION__,getTime()-startTime,__LINE__);startTime = getTime();
 
 	GeneralizedGaussianDistribution * ggdnfunc	= new GeneralizedGaussianDistribution(true,true);
 	ggdnfunc->nr_refineiters		= 10;
@@ -987,7 +987,7 @@ vector<vector < OcclusionScore > > ModelUpdater::computeOcclusionScore(vector<Mo
 
 
 	double noiseWeight = dfunc->getNoise();
-	//	printf("%s :: %5.5f s :: %i\n",__FUNCTION__,getTime()-startTime,__LINE__);startTime = getTime();
+	printf("%s :: %5.5f s :: %i\n",__FUNCTION__,getTime()-startTime,__LINE__);startTime = getTime();
 
 	for(unsigned int i = 0; i < models.size(); i++){
 		Model * model1 = models[i];

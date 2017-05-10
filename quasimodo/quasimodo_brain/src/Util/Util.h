@@ -102,7 +102,7 @@ namespace quasimodo_brain {
 
 //reglib::Model * processAV(std::string path, bool compute_edges = true, std::string savePath = "");
 
-void readViewXML(std::string roomLogName, std::string xmlFile, std::vector<reglib::RGBDFrame *> & frames, std::vector<Eigen::Matrix4d> & poses, bool compute_edges = true, std::string savePath = "");
+bool readViewXML(std::string roomLogName, std::string xmlFile, std::vector<reglib::RGBDFrame *> & frames, std::vector<Eigen::Matrix4d> & poses, bool compute_edges = true, std::string savePath = "");
 
 void setLargeStack();
 

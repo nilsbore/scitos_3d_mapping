@@ -26,6 +26,7 @@ class ModelStorage{
     virtual void fullHandback();
     virtual void saveSnapshot();
     virtual pcl::PointCloud<pcl::PointXYZRGB>::Ptr getSnapshot();
+	//virtual std::vector<reglib::Model *> getBestModels(int nr = 20);
 		
 	ModelStorage();
 	~ModelStorage();

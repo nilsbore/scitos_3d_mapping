@@ -118,6 +118,8 @@ using namespace Eigen;
 
         void getRepFrame(RGBDFrame * & frame, ModelMask * & modelmask, std::string keyval);
 
+		double getScore(int type = 0);
+
 		//void getData(std::vector<Eigen::Matrix4d> & po, std::vector<RGBDFrame*> & fr, std::vector<ModelMask*> & mm, Eigen::Matrix4d p = Eigen::Matrix4d::Identity());
 	};
 

@@ -108,6 +108,8 @@ void publish_history(std::vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr> history
 }
 
 void showModels(std::vector<reglib::Model *> mods){
+	printf("%s :: %i\n",__PRETTY_FUNCTION__,__LINE__);
+	printf("showModels = %i\n",mods.size());
 	float maxx = 0;
 	pcl::PointCloud<pcl::PointXYZRGB>::Ptr	conccloud	(new pcl::PointCloud<pcl::PointXYZRGB>);
 	for(unsigned int i = 0; i < mods.size(); i++){
@@ -155,6 +157,7 @@ void showModels(std::vector<reglib::Model *> mods){
 
 int savecounter = 0;
 void show_sorted(){
+printf("%s :: %i\n",__PRETTY_FUNCTION__,__LINE__);
     if(!show_db && !save_db ){return;}
 	std::vector<reglib::Model *> results;
 	for(unsigned int i = 0; i < modeldatabase->models.size(); i++){results.push_back(modeldatabase->models[i]);}
@@ -183,7 +186,7 @@ bool recognizeService(quasimodo_msgs::recognize::Request  & req, quasimodo_msgs:
 }
 
 bool addIfPossible(ModelDatabase * database, reglib::Model * model, reglib::Model * model2){
-    reglib::RegistrationRandom *	reg	= new reglib::RegistrationRandom(25);
+	reglib::RegistrationRandom *	reg	= new reglib::RegistrationRandom(5);
 	reglib::ModelUpdaterBasicFuse * mu	= new reglib::ModelUpdaterBasicFuse( model2, reg);
 	mu->occlusion_penalty               = occlusion_penalty;
 	mu->massreg_timeout                 = massreg_timeout;
@@ -222,7 +225,11 @@ bool addIfPossible(ModelDatabase * database, reglib::Model * model, reglib::Mode
 }
 
 bool addToDB(ModelDatabase * database, reglib::Model * model, bool add){// = true){, bool deleteIfFail = false){
-    printf("start: %s\n",__PRETTY_FUNCTION__);
+//  printf("start: %s\n",__PRETTY_FUNCTION__);
+//	printf("Model: %ld \n",model);
+//	printf("keyval: %s\n",model->keyval.c_str());
+//	printf("model->points.size() = %i\n",model->points.size());
+
 	if(add){
 		if(model->submodels.size() > 2){
 			reglib::RegistrationRandom *	reg	= new reglib::RegistrationRandom();
@@ -241,11 +248,14 @@ bool addToDB(ModelDatabase * database, reglib::Model * model, bool add){// = tru
 		database->add(model);
 		model->last_changed = ++current_model_update;
 	}
+//	printf("Model: %ld \n",model);
+//	printf("keyval: %s\n",model->keyval.c_str());
+//	printf("model->points.size() = %i\n",model->points.size());
+//	printf("debugg, stopping early %i\n",__LINE__);
 
     std::vector<reglib::Model * > res = modeldatabase->search(model,1);
 
 	if(show_search){showModels(res);}
-
 
     for(unsigned int i = 0; i < res.size(); i++){
 		if(addIfPossible(database,model,res[i])){
@@ -305,14 +315,14 @@ bool runSearch(ModelDatabase * database, reglib::Model * model, int number_of_se
 std::set<int> searchset;
 
 void addNewModel(reglib::Model * model){
-
+printf("%s :: %i\n",__PRETTY_FUNCTION__,__LINE__);
 //	pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr cld = reglib::getPointCloudFromVector(model->points);
 //	viewer->setBackgroundColor(1.0,0.0,1.0);
 //	viewer->removeAllPointClouds();
 //	viewer->addPointCloud<pcl::PointXYZRGBNormal> (cld, pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGBNormal>(cld), "cld");
 //	viewer->spin();
 
-printf("start: %s\n",__PRETTY_FUNCTION__);
+
 	reglib::RegistrationRandom *	reg	= new reglib::RegistrationRandom();
 	reg->visualizationLvl				= show_reg_lvl;
 	reglib::ModelUpdaterBasicFuse * mu	= new reglib::ModelUpdaterBasicFuse( model, reg);
@@ -338,18 +348,28 @@ printf("start: %s\n",__PRETTY_FUNCTION__);
 		newmodelHolder->recomputeModelPoints();
     }
 
-    printf("%ld front point: ",long(newmodelHolder));
+	//printf("%ld front point: ",long(newmodelHolder));
     newmodelHolder->points.front().print();
     model->updated = true;
     newmodelHolder->updated = true;
 
+printf("newmodelHolder->points.size() = %i\n",newmodelHolder->points.size());
     storage->print();
 	modeldatabase->add(newmodelHolder);
 
 
+
+
 	addToDB(modeldatabase, newmodelHolder,false);
 
-	show_sorted();
+	if(show_db){
+		pcl::PointCloud<pcl::PointXYZRGB>::Ptr cld = storage->getSnapshot();//reglib::getPointCloudFromVector(model->points);
+		viewer->setBackgroundColor(1.0,0.0,1.0);
+		viewer->removeAllPointClouds();
+		viewer->addPointCloud<pcl::PointXYZRGB> (cld, pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB>(cld), "cld");
+		viewer->spin();
+	}
+	//show_sorted();
 
 	bool do_next = true;
 	while(do_next && run_search){
@@ -382,6 +402,9 @@ void modelCallback(const quasimodo_msgs::model & m){
 	printf("----------%s----------\n",__PRETTY_FUNCTION__);
     quasimodo_msgs::model mod = m;
 	reglib::Model * model = quasimodo_brain::getModelFromMSG(mod,true);
+
+//	printf("keyval: %s\n",model->keyval.c_str());
+//	printf("model->points.size() = %i\n",model->points.size());
 
 	addNewModel(model);
     printf("done... handback!\n");

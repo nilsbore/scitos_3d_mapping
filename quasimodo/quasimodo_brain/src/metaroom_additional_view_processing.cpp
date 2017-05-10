@@ -127,6 +127,20 @@ void sendMetaroomToServer(std::string path);
 bool testDynamicObjectServiceCallback(std::string path);
 bool dynamicObjectsServiceCallback(DynamicObjectsServiceRequest &req, DynamicObjectsServiceResponse &res);
 
+bool verifySweepOK(std::string path){
+	SimpleXMLParser<pcl::PointXYZRGB> parser;
+	SimpleXMLParser<pcl::PointXYZRGB>::RoomData other_roomData  = parser.loadRoomFromXML(path,std::vector<std::string>(),false,false);
+	std::string other_waypointid = other_roomData.roomWaypointId;
+
+	if (other_waypointid.find("ReceptionKitchen") != std::string::npos){
+		return true;
+	}else{
+		return false;
+	}
+
+	return true;
+}
+
 void loadMetaroomPoses(std::string xmlpaths){
     SimpleXMLParser<pcl::PointXYZRGB> parser;
     std::vector<std::string> sweep_xmls = semantic_map_load_utilties::getSweepXmls<pcl::PointXYZRGB>(xmlpaths);
@@ -231,6 +245,10 @@ reglib::Model * getAVMetaroom(std::string path, bool compute_edges = true, std::
     if(sweepPoses.size() != 0){
         max_nr_frames = std::min(max_nr_frames,sweepPoses.size());
     }
+
+	max_nr_frames = std::max(max_nr_frames,frames.size());
+
+	printf("max_nr_frames: %i\n",max_nr_frames);
 
 	std::vector<reglib::RGBDFrame * > metaroom_frames;
 	for (size_t i=0; i < max_nr_frames && i < 17; i++){
@@ -1232,7 +1250,16 @@ std::vector<reglib::Model *> loadModels(std::string path){
 
 	std::vector<reglib::RGBDFrame *> frames;
 	std::vector<Eigen::Matrix4d> poses;
-	quasimodo_brain::readViewXML(roomLogName, sweep_folder+"ViewGroup.xml",frames,poses,false);
+	bool ret = quasimodo_brain::readViewXML(roomLogName, sweep_folder+"ViewGroup.xml",frames,poses,false);
+	printf("ret: %i\n",ret);
+	if(!ret){
+		reglib::Model * fullmodel = getAVMetaroom(path,true,"");
+		fullmodel->fullDelete();
+		delete fullmodel;
+
+		ret = quasimodo_brain::readViewXML(roomLogName, sweep_folder+"ViewGroup.xml",frames,poses,false);
+		printf("ret: %i\n",ret);
+	}
 
 	int objcounter = -1;
 	QStringList objectFiles = QDir(sweep_folder.c_str()).entryList(QStringList("dynamic_obj*.xml"));
@@ -1299,9 +1326,12 @@ void addModelToModelServer(reglib::Model * model){
     }
 	ros::spinOnce();
     printf("stop  void addModelToModelServer\n");
+
+	printf("EXIT %i from %s\n",__LINE__,__FILE__);exit(0);
 }
 
 void sendMetaroomToServer(std::string path){
+	if(!verifySweepOK(path)){return;}
 
 	quasimodo_brain::cleanPath(path);
 	int slash_pos = path.find_last_of("/");
@@ -1322,6 +1352,8 @@ void sendMetaroomToServer(std::string path){
 			delete models[i];
 		}
 	}
+
+
 }
 
 void sendCallback(const std_msgs::String::ConstPtr& msg){sendMetaroomToServer(msg->data);}
@@ -2021,12 +2053,15 @@ int main(int argc, char** argv){
 	for(unsigned int i = 0; i < sendMetaroomToServers.size(); i++){
         printf("sendMetaroomToServers::%s\n",sendMetaroomToServers[i].c_str());
 		vector<string> sweep_xmls = semantic_map_load_utilties::getSweepXmls<PointType>(sendMetaroomToServers[i]);
+
+
 		for (auto sweep_xml : sweep_xmls) {
 			printf("sweep_xml: %s\n",sweep_xml.c_str());
 			quasimodo_brain::cleanPath(sweep_xml);
 			int slash_pos = sweep_xml.find_last_of("/");
 			std::string sweep_folder = sweep_xml.substr(0, slash_pos) + "/";
 			sendMetaroomToServer(sweep_folder);
+
 		}
 	}
 

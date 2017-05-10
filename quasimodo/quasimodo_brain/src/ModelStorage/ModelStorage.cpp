@@ -36,12 +36,10 @@ void ModelStorage::print(){
 	printf("/////////////////////////////////////////////////////////////\n");
 }
 
-
-
-
 void ModelStorage::fullHandback(){
     for (std::map<std::string,reglib::Model * >::iterator it=activeModels.begin(); it!=activeModels.end(); ++it){
 		printf("removing %s -> %s\n",it->first.c_str(),it->second->keyval.c_str());
 		handback(it->second,true);
     }
 }
+

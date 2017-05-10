@@ -29,6 +29,7 @@ class ModelDatabase{
 		
 	//Find the number_of_matches closest matches in dabase to the pointcloud for index 
 	virtual std::vector<reglib::Model * > search(reglib::Model * model, int number_of_matches);
+	virtual std::vector<reglib::Model * > getBestModels(int nr = 20);
 		
 	ModelDatabase();
 	~ModelDatabase();

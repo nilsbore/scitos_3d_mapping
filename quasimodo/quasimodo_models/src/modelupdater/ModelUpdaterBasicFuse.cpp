@@ -40,11 +40,11 @@ FusionResults ModelUpdaterBasicFuse::registerModel(Model * model2, Eigen::Matrix
 		registration->setDst(model->points);
 		registration->setSrc(model2->points);
 
-        for(unsigned int i = 0; i < 2000; i++){
-			FusionResults fr1 = registration->getTransform(guess);
-			printf("%i :: score :: %f\n",i,fr1.scores.front());
-		}
-		exit(0);
+//        for(unsigned int i = 0; i < 2000; i++){
+//			FusionResults fr1 = registration->getTransform(guess);
+//			printf("%i :: score :: %f\n",i,fr1.scores.front());
+//		}
+//		exit(0);
 		FusionResults fr = registration->getTransform(guess);
 //		delete cd1;
 //		delete cd2;
@@ -64,6 +64,7 @@ FusionResults ModelUpdaterBasicFuse::registerModel(Model * model2, Eigen::Matrix
 		step = std::max(1,step);
 
 		for(unsigned int ca = 0; ca < todo; ca++){
+			printf("ca: %i / %i \n",ca+1,todo);
 			Eigen::Matrix4d pose = fr.candidates[ca];
 
 			vector<Model *> models;

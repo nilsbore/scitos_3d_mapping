@@ -184,11 +184,11 @@ reglib::Model * processAV(std::string path, bool compute_edges = true, std::stri
 	return fullmodel;
 }
 */
-void readViewXML(std::string roomLogName, std::string xmlFile, std::vector<reglib::RGBDFrame *> & frames, std::vector<Eigen::Matrix4d> & poses, bool compute_edges, std::string savePath){
+bool readViewXML(std::string roomLogName, std::string xmlFile, std::vector<reglib::RGBDFrame *> & frames, std::vector<Eigen::Matrix4d> & poses, bool compute_edges, std::string savePath){
 	QFile file(xmlFile.c_str());
 	if (!file.exists()){
 		ROS_ERROR("Could not open file %s to load room.",xmlFile.c_str());
-		return;
+		return false;
 	}
 
 	QString xmlFileQS(xmlFile.c_str());
@@ -207,7 +207,7 @@ void readViewXML(std::string roomLogName, std::string xmlFile, std::vector<regli
 
 		if (xmlReader->hasError()){
 			ROS_ERROR("XML error: %s",xmlReader->errorString().toStdString().c_str());
-			return;
+			return false;
 		}
 
 		QString elementName = xmlReader->name().toString();
@@ -288,6 +288,7 @@ void readViewXML(std::string roomLogName, std::string xmlFile, std::vector<regli
 		}
 	}
 	delete xmlReader;
+	return true;
 }
 
 void setLargeStack(){
@@ -1424,6 +1425,7 @@ double getTime(){
 }
 
 reglib::Model * getModelFromMSG(quasimodo_msgs::model & msg, bool compute_edges){
+	//printf("getModelFromMSG\n");
 	reglib::Model * model = new reglib::Model();
 	model->keyval = msg.keyval;
 
@@ -1457,6 +1459,7 @@ reglib::Model * getModelFromMSG(quasimodo_msgs::model & msg, bool compute_edges)
 		frame->keyval = msg.frames[i].keyval;
 		model->frames.push_back(frame);
 
+
 		geometry_msgs::Pose	pose1 = msg.local_poses[i];
 		Eigen::Affine3d epose1;
 		tf::poseMsgToEigen(pose1, epose1);
@@ -1468,8 +1471,15 @@ reglib::Model * getModelFromMSG(quasimodo_msgs::model & msg, bool compute_edges)
 		cv::Mat mask = mask_ptr->image;
 
 		model->modelmasks.push_back(new reglib::ModelMask(mask));
+
+		//cv::namedWindow( "mask",cv::WINDOW_AUTOSIZE );
+		//cv::imshow( "mask", mask );
+		//frame->show(false);
 	}
 	model->recomputeModelPoints();
+//	printf("Model: %ld \n",model);
+//	printf("keyval: %s\n",model->keyval.c_str());
+//	printf("model->points.size() = %i\n",model->points.size());
 	return model;
 }
 

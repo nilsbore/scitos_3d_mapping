@@ -191,6 +191,8 @@ void Model::mergeKeyPoints(Model * model, Eigen::Matrix4d p){
 }
 
 void Model::addSuperPoints(vector<superpoint> & spvec, Matrix4d p, RGBDFrame* frame, ModelMask* modelmask, boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer){
+//	printf("%s :: %i -> %ld\n",__PRETTY_FUNCTION__,__LINE__,spvec.size());
+
 	Camera * camera				= frame->camera;
 	const unsigned int width	= camera->width;
 	const unsigned int height	= camera->height;
@@ -212,9 +214,12 @@ void Model::addSuperPoints(vector<superpoint> & spvec, Matrix4d p, RGBDFrame* fr
     for(unsigned long ind = 0; ind < nr_pixels;ind++){framesp[ind].last_update_frame_id = last_changed;}
 
 	unsigned long nr_rr = rr_vec.size();
+
+//	printf("nr_rr: %i\n",nr_rr);
+
 	if(nr_rr > 10){
 		std::vector<double> residualsZ;
-		double stdval = 0;
+		double dstdval = 0;
 		for(unsigned long ind = 0; ind < nr_rr;ind++){
 			ReprojectionResult & rr = rr_vec[ind];
 			superpoint & src_p =   spvec[rr.src_ind];
@@ -225,10 +230,10 @@ void Model::addSuperPoints(vector<superpoint> & spvec, Matrix4d p, RGBDFrame* fr
 			double total_stdiv = sqrt(total_variance);
 			double d = rr.residualZ;
 			residualsZ.push_back(d/total_stdiv);
-			stdval += residualsZ.back()*residualsZ.back();
+			dstdval += residualsZ.back()*residualsZ.back();
 		}
-		stdval = sqrt(stdval/double(nr_rr));
-
+		dstdval = sqrt(dstdval/double(nr_rr));
+/*
 		DistanceWeightFunction2PPR2 * func = new DistanceWeightFunction2PPR2();
 		func->zeromean				= true;
 		func->maxp					= 0.99;
@@ -242,15 +247,76 @@ void Model::addSuperPoints(vector<superpoint> & spvec, Matrix4d p, RGBDFrame* fr
 		func->maxnoise				= stdval;
 		func->reset();
 		((DistanceWeightFunction2*)func)->computeModel(residualsZ);
+		func->print();
+*/
+
+		DistanceWeightFunction2 * dfunc;
+
+		//GeneralizedGaussianDistribution * dggdnfunc	= new GeneralizedGaussianDistribution(true,true,false,true,true);
+		//dggdnfunc->nr_refineiters					= 4;
+
+		GeneralizedGaussianDistribution * dggdnfunc	= new GeneralizedGaussianDistribution(true,true,false);
+		dggdnfunc->nr_refineiters					= 4;
+		DistanceWeightFunction2PPR3 * dfuncTMP		= new DistanceWeightFunction2PPR3(dggdnfunc,0.1,1000);
+		dfunc = dfuncTMP;
+		dfuncTMP->startreg				= 0.000;
+		dfuncTMP->max_under_mean		= false;
+		dfuncTMP->debugg_print			= false;
+		dfuncTMP->bidir					= true;
+		dfuncTMP->zeromean				= false;
+		dfuncTMP->maxp					= 0.9999;
+		dfuncTMP->maxd					= 0.5;
+		dfuncTMP->histogram_size		= 1000;
+		dfuncTMP->fixed_histogram_size	= false;
+		dfuncTMP->startmaxd				= dfuncTMP->maxd;
+		dfuncTMP->starthistogram_size	= dfuncTMP->histogram_size;
+		dfuncTMP->blurval				= 0.5;
+		dfuncTMP->blur                  = 0.01;
+		dfuncTMP->maxnoise				= dstdval;
+		dfuncTMP->compute_infront		= true;
+		dfuncTMP->ggd					= true;
+		dfuncTMP->reset();
+
+		dfunc->computeModel(residualsZ);
+/*
+		GeneralizedGaussianDistribution * ggdnfunc	= new GeneralizedGaussianDistribution(true,true);
+		ggdnfunc->nr_refineiters					= 4;
+		DistanceWeightFunction2PPR3 * nfuncTMP		= new DistanceWeightFunction2PPR3(ggdnfunc);
+		nfunc = nfuncTMP;
+		nfuncTMP->startreg				= 0.0;
+		nfuncTMP->debugg_print			= false;
+		nfuncTMP->bidir					= false;
+		nfuncTMP->zeromean				= true;
+		nfuncTMP->maxp					= 0.9999;
+		nfuncTMP->maxd					= 2.0;
+		nfuncTMP->histogram_size		= 1000;
+		nfuncTMP->fixed_histogram_size	= false;
+		nfuncTMP->startmaxd				= nfuncTMP->maxd;
+		nfuncTMP->starthistogram_size	= nfuncTMP->histogram_size;
+		nfuncTMP->blurval				= 0.5;
+		nfuncTMP->blur                  = 0.01;
+		nfuncTMP->stdval2				= 1;
+		nfuncTMP->maxnoise				= 1;
+		nfuncTMP->ggd					= true;
+		nfuncTMP->reset();
+		nfunc->computeModel(nvec);
+
+		if(savePath.size() != 0){
+			nfuncTMP->savePath = std::string(savePath)+"/segment_"+std::to_string(segment_run_counter)+"_nfunc.m";
+		}
+
+		printf("training time:     %5.5fs\n",getTime()-startTime);
+*/
+//		printf("noise: %7.7f\n",dfunc->getNoise());
 
 		for(unsigned long ind = 0; ind < nr_rr;ind++){
-			double p = func->getProb(residualsZ[ind]);
+			double p = dfunc->getProb(residualsZ[ind]);
 			if(p > 0.5){sumw[rr_vec[ind].dst_ind] += p;}
 		}
 
 		for(unsigned long ind = 0; ind < nr_rr;ind++){
 			double rz = residualsZ[ind];
-			double p = func->getProb(rz);
+			double p = dfunc->getProb(rz);
 
 			if(p > 0.5){
 				ReprojectionResult & rr = rr_vec[ind];
@@ -258,17 +324,17 @@ void Model::addSuperPoints(vector<superpoint> & spvec, Matrix4d p, RGBDFrame* fr
 				superpoint & dst_p = framesp[rr.dst_ind];
 				float weight = p/sumw[rr.dst_ind];
 				src_p.merge(dst_p,weight);
-			}else if(false && p < 0.001 && rz > 0){//If occlusion: either the new or the old point is unreliable, reduce confidence in both
-				ReprojectionResult & rr = rr_vec[ind];
-				superpoint & src_p =   spvec[rr.src_ind];
-				superpoint & dst_p = framesp[rr.dst_ind];
-
-				double dst_pi = dst_p.point_information;
-				src_p.point_information -= 0.5*dst_pi;
-				dst_p.point_information -= 0.5*dst_pi;
 			}
+//			else if(false && p < 0.001 && rz > 0){//If occlusion: either the new or the old point is unreliable, reduce confidence in both
+//				ReprojectionResult & rr = rr_vec[ind];
+//				superpoint & src_p =   spvec[rr.src_ind];
+//				superpoint & dst_p = framesp[rr.dst_ind];
+//				double dst_pi = dst_p.point_information;
+//				src_p.point_information -= 0.5*dst_pi;
+//				dst_p.point_information -= 0.5*dst_pi;
+//			}
 		}
-		delete func;
+		delete dfunc;
 	}
 
 	for(unsigned long ind = 0; ind < nr_pixels;ind++){
@@ -298,9 +364,12 @@ void Model::addSuperPoints(vector<superpoint> & spvec, Matrix4d p, RGBDFrame* fr
 		viewer->spin();
 		viewer->removeAllPointClouds();
 	}
+
+	//printf("%s :: %i -> %ld\n",__PRETTY_FUNCTION__,__LINE__,spvec.size());
 }
 
 void Model::addAllSuperPoints(std::vector<superpoint> & spvec, Eigen::Matrix4d pose, boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer){
+	//printf("%s :: %i\n",__PRETTY_FUNCTION__,__LINE__);
     updated = true;
 	for(unsigned int i = 0; i < frames.size(); i++){
 		addSuperPoints(spvec, pose*relativeposes[i], frames[i], modelmasks[i], viewer);
@@ -312,6 +381,7 @@ void Model::addAllSuperPoints(std::vector<superpoint> & spvec, Eigen::Matrix4d p
 }
 
 void Model::recomputeModelPoints(Eigen::Matrix4d pose, boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer){
+	//printf("%s :: %i\n",__PRETTY_FUNCTION__,__LINE__);
 	double startTime = getTime();
 	points.clear();
 	addAllSuperPoints(points,pose,viewer);
@@ -1548,6 +1618,28 @@ void Model::getRepFrame(RGBDFrame * & frame, ModelMask * & modelmask, std::strin
         }
     }
     return;
+}
+
+double Model::getScore(int type){
+	if(type == 0){
+		double sum = 0;
+		for(unsigned int i = 0; i < submodels.size(); i++){
+			sum += submodels[i]->getScore(type);
+		}
+		sum += frames.size();
+		return sum;
+	}else if(type == 1){
+		double sum = 0;
+		for(unsigned int i = 0; i < submodels.size(); i++){
+			sum += submodels[i]->getScore(type);
+		}
+		if(frames.size() != 0){
+			sum += points.size();
+		}
+		return sum;
+	}else{
+		return submodels.size();
+	}
 }
 
 

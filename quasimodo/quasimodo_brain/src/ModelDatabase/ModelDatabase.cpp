@@ -38,3 +38,7 @@ bool ModelDatabase::setStorage(ModelStorage * storage_){
 std::vector<reglib::Model *> ModelDatabase::search(reglib::Model * model, int number_of_matches){
 	return std::vector<reglib::Model *>();
 }
+
+std::vector<reglib::Model *> ModelDatabase::getBestModels(int nr){
+	return std::vector<reglib::Model *>();
+}
