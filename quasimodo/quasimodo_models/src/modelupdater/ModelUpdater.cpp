@@ -439,9 +439,9 @@ int setupPriors(int method,float current_occlusions, float current_overlaps, flo
     }
 
     if(method == 6 && valid){
-        float p_obj_given_occlusion = 0.8;
-        float p_obj_given_overlap   = 0.30;
-        float p_obj_given_unknown   = 0.499;
+		float p_obj_given_occlusion = 0.9;
+		float p_obj_given_overlap   = 0.35;
+		float p_obj_given_unknown   = 0.4999;
 
         float bg_p_O = bg_occlusions;
         float bg_p_nO_S = (1-bg_p_O)*bg_overlaps;
@@ -3058,6 +3058,57 @@ void getScore(DistanceWeightFunction2 * dfunc, DistanceWeightFunction2 * nfunc,
 	if(verbose){    printf("w: %f overlap: %f occlusion: %f\n",grp.weight,overlap,occlusion);}
 }
 
+void getScore2(DistanceWeightFunction2 * dfunc, DistanceWeightFunction2 * nfunc,
+			  double & overlap, double & occlusion, Grouping & grp,
+			  std::vector<double> & p_overlap_vec, std::vector<double> & p_occlusion_vec,
+			  bool verbose = false){
+	if(verbose){printf("getScore\n");}
+	std::vector< double > agg_d;
+	agg_d.resize(grp.nr_clusters);
+
+	std::vector< double > agg_overlap_vec;
+	agg_overlap_vec.resize(grp.nr_clusters);
+
+	std::vector< double > agg_occlusion_vec;
+	agg_occlusion_vec.resize(grp.nr_clusters);
+
+	std::vector< double > sumc;
+	sumc.resize(grp.nr_clusters);
+
+	if(verbose){
+		printf("clusters = [");
+		for(unsigned int i	= 0; i < grp.added; i++){printf("%i ",grp.clusters[i]);}
+		printf("];\n");
+	}
+
+	for(unsigned long i = 0; i < grp.nr_clusters; i++){
+		sumc[i]					= 0;
+		agg_overlap_vec[i]		= 0;
+		agg_occlusion_vec[i]	= 0;
+	}
+
+	for(unsigned long i	= 0; i < grp.added; i++){
+		unsigned int id		= grp.clusters[i];
+		agg_overlap_vec[id]	+= p_overlap_vec[i];
+		agg_occlusion_vec[id]	+= p_occlusion_vec[i];
+		sumc[id]++;
+	}
+
+	double p_overlap_agg	= 1.0;
+	double p_occlusion_agg	= 1.0;
+	for(unsigned long id	= 0; id < grp.nr_clusters; id++){
+		p_overlap_agg			*= 1-(agg_overlap_vec[id]/sumc[id]);
+		p_occlusion_agg			*= 1-(agg_occlusion_vec[id]/sumc[id]);
+	}
+
+	overlap += grp.weight*p_overlap_agg;
+	occlusion += grp.weight*p_occlusion_agg;
+	//	sum += w;
+
+	if(verbose){    printf("w: %f overlap: %f occlusion: %f\n",grp.weight,overlap,occlusion);}
+}
+
+
 void aggregateProbs( DistanceWeightFunction2 * dfunc, DistanceWeightFunction2 * nfunc, std::vector<superpoint> & framesp1,
 		std::vector< std::vector<double> > & distances, std::vector< std::vector<superpoint> > & points,
 		double * overlaps, double * occlusions, double * notocclusions,
@@ -3067,7 +3118,7 @@ void aggregateProbs( DistanceWeightFunction2 * dfunc, DistanceWeightFunction2 * 
 	#pragma omp parallel for
 	for(unsigned int src_ind = 0; src_ind < nrp; src_ind++){
 		superpoint & src_p = framesp1[src_ind];
-		//bool show = (rand() % 1000) == 0;
+
         double src_variance = 1.0/src_p.point_information;
 
 		std::vector<superpoint> & dst_points = points[src_ind];
@@ -3084,7 +3135,7 @@ void aggregateProbs( DistanceWeightFunction2 * dfunc, DistanceWeightFunction2 * 
             for(unsigned int j = i+1; j < dst_nrp; j++){
                 superpoint & p2 = dst_points[j];
                 double p2_variance = 1.0/p2.point_information;
-                double total_variance = p1_variance+p2_variance+src_variance;
+				double total_variance = p1_variance+p2_variance;//+src_variance;
                 double total_stdiv = sqrt(total_variance);
 
                 double d2 = dst_distances[j];
@@ -3100,20 +3151,87 @@ void aggregateProbs( DistanceWeightFunction2 * dfunc, DistanceWeightFunction2 * 
             }
         }
 
+//		std::vector<double> p_overlap_vec;
+//        current_overlaps.resize(dst_nrp);
+//        for(unsigned int i = 0; i < dst_nrp; i++){
+//            current_overlaps[dst_nrp*i+i] = 0;
+//            superpoint & p1 = dst_points[i];
+//            double p1_variance = 1.0/p1.point_information;
+//            double d1 = dst_distances[i];
+//            for(unsigned int j = i+1; j < dst_nrp; j++){
+//                superpoint & p2 = dst_points[j];
+//                double p2_variance = 1.0/p2.point_information;
+//				double total_variance = p1_variance+p2_variance;//+src_variance;
+//                double total_stdiv = sqrt(total_variance);
+
+//                double d2 = dst_distances[j];
+
+//                double d = (d1-d2)/total_stdiv;
+//                double surface_angle = p1.angle(p2);
+
+//                double p_overlap_angle = nfunc->getProb(1-surface_angle);
+//                double p_overlap = dfunc->getProb(d);
+//                p_overlap *= p_overlap_angle;
+//                current_overlaps[dst_nrp*i+j] = p_overlap;
+//                current_overlaps[dst_nrp*j+i] = p_overlap;
+//            }
+//        }
+
+		std::vector<double> p_overlap_vec;
+		p_overlap_vec.resize(dst_nrp);
+		std::vector<double> p_occlusion_vec;
+		p_occlusion_vec.resize(dst_nrp);
+
+		for(unsigned int dst_ind = 0; dst_ind < dst_nrp; dst_ind++){
+			superpoint & dst_p = dst_points[dst_ind];
+			double dst_variance = 1.0/dst_p.point_information;
+			double total_variance = src_variance+dst_variance;
+			double total_stdiv = sqrt(total_variance);
+			double d = dst_distances[dst_ind]/total_stdiv;
+			double surface_angle = dst_p.angle(src_p);
+			double p_overlap_angle = nfunc->getProb(1-surface_angle);
+			double p_overlap = dfunc->getProb(d);
+			double p_occlusion = dfunc->getProbInfront(d);
+			p_overlap *= p_overlap_angle;
+			p_overlap_vec[dst_ind]   = p_overlap;
+			p_occlusion_vec[dst_ind] = p_occlusion;
+		}
+
 	   if(dst_nrp > 0){
 			std::vector<Grouping> grps = getGroupings(current_overlaps,dst_nrp,0.1);
             double olp = 0;
             double ocl = 0;
             for(unsigned int i = 0; i < grps.size(); i++){
-				getScore(dfunc,nfunc,olp,ocl, grps[i],src_p,dst_points,dst_distances);
+				//getScore(dfunc,nfunc,olp,ocl, grps[i],src_p,dst_points,dst_distances);
+				getScore2(dfunc,nfunc,olp,ocl, grps[i],p_overlap_vec,p_occlusion_vec);
             }
 			overlaps[src_ind] = olp;
 			occlusions[src_ind] = ocl;
-		   // exit(0);
 	   }
 
-//		double p_overlap_agg = 1.0;
-//		double p_occlusion_agg = 1.0;
+/*
+		double p_overlap_agg = 1.0;
+		double p_occlusion_agg = 1.0;
+
+		for(unsigned int dst_ind = 0; dst_ind < dst_nrp; dst_ind++){
+			superpoint & dst_p = dst_points[dst_ind];
+			//double src_variance = 1.0/src_p.point_information;
+			double dst_variance = 1.0/dst_p.point_information;
+			double total_variance = src_variance+dst_variance;
+			double total_stdiv = sqrt(total_variance);
+			double d = dst_distances[dst_ind]/total_stdiv;
+			double surface_angle = dst_p.angle(src_p);
+			double p_overlap_angle = nfunc->getProb(1-surface_angle);
+			double p_overlap = dfunc->getProb(d);
+			double p_occlusion = dfunc->getProbInfront(d);
+			p_overlap *= p_overlap_angle;
+			p_overlap_agg   *= 1-p_overlap;
+			p_occlusion_agg *= 1-p_occlusion;
+		}
+
+		overlaps[src_ind] = p_overlap_agg;
+		occlusions[src_ind] = p_occlusion_agg;
+*/
 //		switch(dst_nrp) {
 //		case 0: {
 //			p_overlap_agg	= 0.0;
@@ -3382,7 +3500,7 @@ void ModelUpdater::computeMovingDynamicStatic(std::vector<cv::Mat> & movemask, s
     //GeneralizedGaussianDistribution * dggdnfunc	= new GeneralizedGaussianDistribution(true,true,false,true,true);
     //dggdnfunc->nr_refineiters					= 4;
 
-    GeneralizedGaussianDistribution * dggdnfunc	= new GeneralizedGaussianDistribution(true,true,false);
+	GeneralizedGaussianDistribution * dggdnfunc	= new GeneralizedGaussianDistribution(true,true,false);
     dggdnfunc->nr_refineiters					= 4;
     DistanceWeightFunction2PPR3 * dfuncTMP		= new DistanceWeightFunction2PPR3(dggdnfunc,0.1,1000);
 	dfunc = dfuncTMP;
@@ -3530,11 +3648,11 @@ void ModelUpdater::computeMovingDynamicStatic(std::vector<cv::Mat> & movemask, s
 			addReprojections(p.inverse(),dfunc,nfunc,current_distances,current_points,frames[i],framesp_test[i],framesp[i],frames[j],framesp[j],offsets[i],offsets[j],interframe_connectionId,interframe_connectionStrength,0);
 		}
 
-		printf("start agg\n");
+		//printf("start agg\n");
 		double agg_start = getTime();
 		aggregateProbs(dfunc,nfunc,framesp[i],bg_distances, bg_points,bg_overlaps, bg_occlusions, bg_notocclusions);
 		printf("stop agg: %5.5fs\n",getTime()-agg_start);
-		printf("start agg\n");
+		//printf("start agg\n");
 		agg_start = getTime();
 		aggregateProbs(dfunc,nfunc,framesp[i],current_distances, current_points,current_overlaps, current_occlusions, current_notocclusions);
 		printf("stop agg: %5.5fs\n",getTime()-agg_start);

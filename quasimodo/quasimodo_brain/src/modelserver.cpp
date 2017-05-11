@@ -432,6 +432,10 @@ void clearMem(){
 	if(modeldatabase != 0){delete modeldatabase;}
 }
 
+void reloadMongoDB(){
+
+}
+
 int main(int argc, char **argv){
 
     storage = new ModelStorageFile();
@@ -469,6 +473,7 @@ int main(int argc, char **argv){
 	std::vector<std::string> modelpcds;
 
 	bool clearQDB = false;
+	bool reloadMongo = false;
 
 	int inputstate = -1;
 	for(int i = 1; i < argc;i++){
@@ -498,6 +503,7 @@ int main(int argc, char **argv){
 		else if(std::string(argv[i]).compare("-show_modelbuild") == 0){	printf("show_modelbuild\n");	visualization = true; show_modelbuild = true;}
 		else if(std::string(argv[i]).compare("-loadModelsPCDs") == 0){								inputstate = 13;}
 		else if(std::string(argv[i]).compare("-clearQDB") == 0){									clearQDB = true;}
+		else if(std::string(argv[i]).compare("-reloadMongo") == 0){									reloadMongo = true;}
 		else if(inputstate == 1){
             reglib::Camera * cam = reglib::Camera::load(std::string(argv[i]));
 			delete cameras[0];
@@ -552,6 +558,30 @@ int main(int argc, char **argv){
 
 	if(modeldatabase == 0){modeldatabase	= new ModelDatabaseRetrieval(n);}
 	modeldatabase->setStorage(storage);
+
+	if(reloadMongo){
+		ros::ServiceClient insert_client = n.serviceClient<quasimodo_msgs::insert_model>("/insert_model_service");
+		quasimodo_msgs::insert_model im;
+		im.request.action = im.request.CLEAR;
+		if (insert_client.call(im)){
+			for (std::map<std::string,std::string>::iterator it=storage->keyPathMap.begin(); it!=storage->keyPathMap.end(); ++it){
+				reglib::Model * model = storage->fetch(it->first);
+				im.request.model = quasimodo_brain::getModelMSG(model,true);
+				im.request.action = im.request.INSERT;
+				printf("starting to insert into retrieval database\n");
+				if (insert_client.call(im)){
+					model->retrieval_object_id = im.response.object_id;
+					model->retrieval_vocabulary_id = std::to_string(im.response.vocabulary_id);
+					model->keyval = model->retrieval_vocabulary_id;
+				}else{
+					ROS_ERROR("insert_client service INSERT FAIL!");
+				}
+				storage->fullHandback();
+			}
+		}else{
+			ROS_ERROR("insert_client service CLEAR FAIL!");
+		}
+	}
 
 	for(unsigned int i = 0; i < modelpcds.size(); i++){
 		std::vector<reglib::Model *> mods = quasimodo_brain::loadModelsPCDs(modelpcds[i]);

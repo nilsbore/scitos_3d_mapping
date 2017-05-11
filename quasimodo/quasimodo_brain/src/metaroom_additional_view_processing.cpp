@@ -128,11 +128,32 @@ bool testDynamicObjectServiceCallback(std::string path);
 bool dynamicObjectsServiceCallback(DynamicObjectsServiceRequest &req, DynamicObjectsServiceResponse &res);
 
 bool verifySweepOK(std::string path){
+
+	if (path.find("room.xml") != std::string::npos){
+	}else{
+		path += "room.xml";
+	}
+
+
+	if (path.find("201703") != std::string::npos){
+		//printf("fail: %s\n",path.c_str());
+		return false;
+	}
+
+	if (path.find("201704") != std::string::npos){
+		//printf("fail: %s\n",path.c_str());
+		return false;
+	}
+	printf("good: %s\n",path.c_str());
+
+
 	SimpleXMLParser<pcl::PointXYZRGB> parser;
 	SimpleXMLParser<pcl::PointXYZRGB>::RoomData other_roomData  = parser.loadRoomFromXML(path,std::vector<std::string>(),false,false);
 	std::string other_waypointid = other_roomData.roomWaypointId;
-
-	if (other_waypointid.find("ReceptionKitchen") != std::string::npos){
+	printf("waypoint: %s\n",other_waypointid.c_str());
+	//if (other_waypointid.find("ReceptionKitchen") != std::string::npos){
+	if (other_waypointid.find("Kitchen") != std::string::npos){
+		printf("OK: %s waypoint: %s\n",path.c_str(),other_waypointid.c_str());
 		return true;
 	}else{
 		return false;
@@ -670,6 +691,9 @@ bool compare_nat(const std::string& a, const std::string& b)
 }
 
 int processMetaroom(CloudPtr dyncloud, std::string path, bool store_old_xml = true){
+	if(!verifySweepOK(path)){return 0;}
+
+
 	path = quasimodo_brain::replaceAll(path, "//", "/");
 	quasimodo_brain::cleanPath(path);
 	int returnval = 0;
@@ -1240,7 +1264,12 @@ std::vector<reglib::Model *> loadModels(std::string path){
 	printf("loadModels(%s)\n",path.c_str());
 
 	SimpleXMLParser<pcl::PointXYZRGB> parser;
-	SimpleXMLParser<pcl::PointXYZRGB>::RoomData roomData  = parser.loadRoomFromXML(path,std::vector<std::string>(),false,false);
+	SimpleXMLParser<pcl::PointXYZRGB>::RoomData roomData;
+	if (path.find("room.xml") != std::string::npos){
+		roomData = parser.loadRoomFromXML(path,std::vector<std::string>(),false,false);
+	}else{
+		roomData = parser.loadRoomFromXML(path+"room.xml",std::vector<std::string>(),false,false);
+	}
 	std::string roomLogName = roomData.roomLogName;
 	printf("roomLogName: %s\n",roomLogName.c_str());
 
@@ -1273,7 +1302,6 @@ std::vector<reglib::Model *> loadModels(std::string path){
 		reglib::Model * mod = new reglib::Model();
 		mod->keyval = roomLogName+"_object_"+std::to_string(objcounter);
 		printf("object label: %s\n",mod->keyval.c_str());
-
 
 		QXmlStreamReader* xmlReader = new QXmlStreamReader(&file);
 
@@ -1327,11 +1355,13 @@ void addModelToModelServer(reglib::Model * model){
 	ros::spinOnce();
     printf("stop  void addModelToModelServer\n");
 
-	printf("EXIT %i from %s\n",__LINE__,__FILE__);exit(0);
+	//printf("EXIT %i from %s\n",__LINE__,__FILE__);exit(0);
 }
 
 void sendMetaroomToServer(std::string path){
+	//printf("sendMetaroomToServer(%s)\n",path.c_str());
 	if(!verifySweepOK(path)){return;}
+	printf("OK!\n");
 
 	quasimodo_brain::cleanPath(path);
 	int slash_pos = path.find_last_of("/");
@@ -2050,13 +2080,17 @@ int main(int argc, char** argv){
 	for(unsigned int i = 0; i < processMetarooms.size(); i++){
 		processSweep(processMetarooms[i],"");
 	}
+
 	for(unsigned int i = 0; i < sendMetaroomToServers.size(); i++){
         printf("sendMetaroomToServers::%s\n",sendMetaroomToServers[i].c_str());
 		vector<string> sweep_xmls = semantic_map_load_utilties::getSweepXmls<PointType>(sendMetaroomToServers[i]);
 
+//		for (auto sweep_xml : sweep_xmls) {
+//			verifySweepOK(sweep_xml);
+//		}exit(0);
 
 		for (auto sweep_xml : sweep_xmls) {
-			printf("sweep_xml: %s\n",sweep_xml.c_str());
+			//printf("sweep_xml: %s\n",sweep_xml.c_str());
 			quasimodo_brain::cleanPath(sweep_xml);
 			int slash_pos = sweep_xml.find_last_of("/");
 			std::string sweep_folder = sweep_xml.substr(0, slash_pos) + "/";

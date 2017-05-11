@@ -1100,6 +1100,9 @@ void Model::saveFast(std::string path){
     //printf("Model::saveFast(%s)\n",path.c_str());
 
 	double startTime = getTime();
+	pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr cld = getPCLnormalcloud(1,false);
+	pcl::io::savePCDFileBinary(path+"cloud.pcd", *cld);
+
 	pointspath = path+"points.bin";
 
 	long sizeofSuperPoint = 3*(3+1);
