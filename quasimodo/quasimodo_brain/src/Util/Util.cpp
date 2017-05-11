@@ -1,4 +1,5 @@
 #include "Util.h"
+#include <pcl/visualization/pcl_visualizer.h>
 
 namespace quasimodo_brain {
 /*
@@ -1490,9 +1491,9 @@ void addToModelMSG(quasimodo_msgs::model & msg, reglib::Model * model, Eigen::Af
 	msg.masks.resize(startsize+model->modelmasks.size());
 	for(unsigned int i = 0; i < model->relativeposes.size(); i++){
 		geometry_msgs::Pose		pose1;
-		tf::poseEigenToMsg (Eigen::Affine3d(model->relativeposes[i])*rp, pose1);
+		tf::poseEigenToMsg (rp*Eigen::Affine3d(model->relativeposes[i]), pose1);
 		geometry_msgs::Pose		pose2;
-		tf::poseEigenToMsg (Eigen::Affine3d(model->frames[i]->pose)*rp, pose2);
+		tf::poseEigenToMsg (Eigen::Affine3d(model->frames[i]->pose), pose2);
 		cv_bridge::CvImage rgbBridgeImage;
 		rgbBridgeImage.image = model->frames[i]->rgb;
 		rgbBridgeImage.encoding = "bgr8";
@@ -1520,8 +1521,34 @@ void addToModelMSG(quasimodo_msgs::model & msg, reglib::Model * model, Eigen::Af
 		if(addClouds){pcl::toROSMsg(*(model->frames[i]->getPCLcloud()), output);}
 		msg.clouds.push_back(output);
 	}
+
+//	if(msg.local_poses.size() > 0){
+//		pcl::PointCloud<pcl::PointXYZRGB>::Ptr combined_cloud(new pcl::PointCloud<pcl::PointXYZRGB>);
+//		for (size_t i = 0; i < msg.local_poses.size(); ++i) {
+//			pcl::PointCloud<pcl::PointXYZRGB> cloud;
+//			pcl::fromROSMsg(msg.clouds[i], cloud);
+//			Eigen::Affine3d e;
+//			tf::poseMsgToEigen(msg.local_poses[i], e);
+//			Eigen::Matrix4d T = e.matrix();
+//			pcl::PointCloud<pcl::PointXYZRGB> transformed_cloud;
+//			pcl::transformPointCloud(cloud, transformed_cloud, T);
+//			*combined_cloud += transformed_cloud;
+//		}
+//		boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer(new pcl::visualization::PCLVisualizer ("3D Viewer"));
+//		viewer->setBackgroundColor(1, 1, 1);
+//		pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb(combined_cloud);
+//		viewer->addPointCloud<pcl::PointXYZRGB>(combined_cloud, rgb, "sample cloud");
+//		viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "sample cloud");
+//		viewer->addCoordinateSystem(1.0);
+//		viewer->initCameraParameters();
+//		while (!viewer->wasStopped()) {
+//			viewer->spinOnce(100);
+//		}
+//	}
+
+
 	for(unsigned int i = 0; i < model->submodels_relativeposes.size(); i++){
-		addToModelMSG(msg,model->submodels[i],Eigen::Affine3d(model->submodels_relativeposes[i])*rp,addClouds);
+		addToModelMSG(msg,model->submodels[i],Eigen::Affine3d(rp*model->submodels_relativeposes[i]),addClouds);
 	}
 }
 

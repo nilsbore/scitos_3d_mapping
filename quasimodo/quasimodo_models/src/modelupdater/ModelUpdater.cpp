@@ -884,7 +884,7 @@ void ModelUpdater::testgetDynamicWeights(bool store_distance, std::vector<double
 
 
 vector<vector < OcclusionScore > > ModelUpdater::computeOcclusionScore(vector<Model *> models, vector<Matrix4d> rps, int step, bool debugg){
-	printf("computeOcclusionScore\n");
+	//printf("computeOcclusionScore\n");
 	std::vector<double> dvec;
 	std::vector<double> nvec;
 	DistanceWeightFunction2 * dfunc;
@@ -939,15 +939,15 @@ vector<vector < OcclusionScore > > ModelUpdater::computeOcclusionScore(vector<Mo
 	dggdnfunc->debugg_print						= false;
 	DistanceWeightFunction2PPR3 * dfuncTMP		= new DistanceWeightFunction2PPR3(dggdnfunc);
 	dfunc = dfuncTMP;
-	dfuncTMP->startreg				= 0.001;
+	dfuncTMP->startreg				= 0.000;
 	dfuncTMP->max_under_mean		= false;
 	dfuncTMP->debugg_print			= debugg;
 	dfuncTMP->bidir					= true;
 	dfuncTMP->zeromean				= false;
 	dfuncTMP->maxp					= 0.9999;
-	dfuncTMP->maxd					= dstdval*10;
-	dfuncTMP->histogram_size		= 1000;
-	dfuncTMP->fixed_histogram_size	= false;
+	dfuncTMP->maxd					= 0.005;//dstdval*10;
+	dfuncTMP->histogram_size		= 100;
+	dfuncTMP->fixed_histogram_size	= true;
 	dfuncTMP->startmaxd				= dfuncTMP->maxd;
 	dfuncTMP->starthistogram_size	= dfuncTMP->histogram_size;
 	dfuncTMP->blurval				= 1.0;
@@ -957,9 +957,6 @@ vector<vector < OcclusionScore > > ModelUpdater::computeOcclusionScore(vector<Mo
 	dfuncTMP->reset();
 
 	dfunc->computeModel(dvec);
-
-	printf("dfunc->getNoise() = %f\n",dfunc->getNoise());
-	printf("%s :: %5.5f s :: %i\n",__FUNCTION__,getTime()-startTime,__LINE__);startTime = getTime();
 
 	GeneralizedGaussianDistribution * ggdnfunc	= new GeneralizedGaussianDistribution(true,true);
 	ggdnfunc->nr_refineiters		= 10;
@@ -987,7 +984,7 @@ vector<vector < OcclusionScore > > ModelUpdater::computeOcclusionScore(vector<Mo
 
 
 	double noiseWeight = dfunc->getNoise();
-	printf("%s :: %5.5f s :: %i\n",__FUNCTION__,getTime()-startTime,__LINE__);startTime = getTime();
+	//printf("%s :: %5.5f s :: %i\n",__FUNCTION__,getTime()-startTime,__LINE__);startTime = getTime();
 
 	for(unsigned int i = 0; i < models.size(); i++){
 		Model * model1 = models[i];

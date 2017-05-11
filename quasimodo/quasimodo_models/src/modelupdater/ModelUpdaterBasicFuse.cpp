@@ -75,7 +75,7 @@ FusionResults ModelUpdaterBasicFuse::registerModel(Model * model2, Eigen::Matrix
 			addModelsToVector(models,rps,model2,pose);
 
 			//Show alignment
-			vector<vector < OcclusionScore > > ocs = computeOcclusionScore(models,rps,step,false);
+			vector<vector < OcclusionScore > > ocs = computeOcclusionScore(models,rps,step,show_scoring);
 			std::vector<std::vector < float > > scores = getScores(ocs);
 			std::vector<int> partition = getPartition(scores,2,5,2);
 
@@ -107,16 +107,18 @@ FusionResults ModelUpdaterBasicFuse::registerModel(Model * model2, Eigen::Matrix
 //				//computeOcclusionScore(models,rps,step,true);
 //			}
 
+			printf("improvement: %10.10f ",improvement*0.001);
+			ocs[1][0].print();
+			for(unsigned int i = 0; i < scores.size(); i++){
+				for(unsigned int j = 0; j < scores.size(); j++){
+					if(scores[i][j] >= 0){printf(" ");}
+					printf("%5.5f ",0.00001*scores[i][j]);
+				}
+				printf("\n");
+			}
+			printf("partition "); for(unsigned int i = 0; i < partition.size(); i++){printf("%i ", partition[i]);} printf("\n");
 
 			if(improvement > best){
-//				for(unsigned int i = 0; i < scores.size(); i++){
-//					for(unsigned int j = 0; j < scores.size(); j++){
-//						if(scores[i][j] >= 0){printf(" ");}
-//						printf("%5.5f ",0.00001*scores[i][j]);
-//					}
-//					printf("\n");
-//				}
-//				printf("partition "); for(unsigned int i = 0; i < partition.size(); i++){printf("%i ", partition[i]);} printf("\n");
 				best = improvement;
 				best_id = ca;
 			}

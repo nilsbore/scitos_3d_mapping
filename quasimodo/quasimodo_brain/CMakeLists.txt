@@ -196,6 +196,10 @@ add_dependencies(		make_metaroom_lower_level roscpp quasimodo_msgs_generate_mess
 target_link_libraries(	make_metaroom_lower_level quasimodo_CameraOptimizer quasimodo_DescriptorExtractor quasimodo_distribution quasimodo_KeyPoint quasimodo_descriptor quasimodo_superpoint quasimodo_brain_util quasimodo_ModelDatabase  image_geometry cpp_common roscpp rosconsole tf_conversions metaroom_xml_parser ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${catkin_LIBRARIES})
 
 
+add_executable(			testmerge src/testmerge.cpp)
+add_dependencies(		testmerge roscpp quasimodo_msgs_generate_messages_cpp)
+target_link_libraries(	testmerge quasimodo_superpoint quasimodo_brain_util quasimodo_ModelDatabase image_geometry cpp_common roscpp rosconsole tf_conversions metaroom_xml_parser ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${catkin_LIBRARIES})
+
 
 #############
 ## Install ##
