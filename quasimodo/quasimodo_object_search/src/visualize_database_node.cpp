@@ -30,6 +30,10 @@ public:
 
         viewer->initCameraParameters();
 
+        viewer->addCoordinateSystem();
+
+        callback(std_msgs::Empty());
+
     }
 
     void callback(const std_msgs::Empty& empty_msg)

@@ -61,14 +61,17 @@ def insert_model_cb(sreq):
     req.registered_views = resp.clouds
     req.registered_views_transforms = transforms
 
-    print "Waiting for surfelize_server..."
-    rospy.wait_for_service('surfelize_server')
-    try:
-        surfelize_server = rospy.ServiceProxy('surfelize_server', ProcessRegisteredViews)
-        resp = surfelize_server(req)
-    except rospy.ServiceException, e:
-        print "Service call failed: %s"%e
-        return False
+    surfelize_it_completed = False
+    while not surfelize_it_completed:
+        print "Waiting for surfelize_server..."
+        rospy.wait_for_service('surfelize_server')
+        try:
+            surfelize_server = rospy.ServiceProxy('surfelize_server', ProcessRegisteredViews)
+            resp = surfelize_server(req)
+            surfelize_it_completed = True
+        except rospy.ServiceException, e:
+            print "Service call failed: %s"%e
+            rospy.sleep(0.1)
 
     new_obj = fused_world_state_object()
     new_obj.surfel_cloud = resp.processed_cloud
