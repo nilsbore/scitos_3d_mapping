@@ -57,6 +57,18 @@ int current_model_update	= 0;
 
 bool myfunction (reglib::Model * i,reglib::Model * j) { return (i->frames.size() + i->submodels.size())  > (j->frames.size() + j->submodels.size()); }
 
+bool verifyKey(std::string key){
+	std::string verify = storage->filepath+"/"+key;
+	printf("Verify: %s\n",verify.c_str());
+	if(quasimodo_brain::fileExists(verify)){
+		printf("it exists!\n");
+		return false;
+	}else{
+		printf("it does not exist!\n");
+		return true;
+	}
+}
+
 void publishDatabasePCD(bool original_colors = false){
 	std::vector<reglib::Model *> results;
 	for(unsigned int i = 0; i < modeldatabase->models.size(); i++){results.push_back(modeldatabase->models[i]);}
@@ -225,10 +237,6 @@ bool addIfPossible(ModelDatabase * database, reglib::Model * model, reglib::Mode
 }
 
 bool addToDB(ModelDatabase * database, reglib::Model * model, bool add){// = true){, bool deleteIfFail = false){
-//  printf("start: %s\n",__PRETTY_FUNCTION__);
-//	printf("Model: %ld \n",model);
-//	printf("keyval: %s\n",model->keyval.c_str());
-//	printf("model->points.size() = %i\n",model->points.size());
 
 	if(add){
 		if(model->submodels.size() > 2){
@@ -248,12 +256,8 @@ bool addToDB(ModelDatabase * database, reglib::Model * model, bool add){// = tru
 		database->add(model);
 		model->last_changed = ++current_model_update;
 	}
-//	printf("Model: %ld \n",model);
-//	printf("keyval: %s\n",model->keyval.c_str());
-//	printf("model->points.size() = %i\n",model->points.size());
-//	printf("debugg, stopping early %i\n",__LINE__);
 
-    std::vector<reglib::Model * > res = modeldatabase->search(model,1);
+	std::vector<reglib::Model * > res = modeldatabase->search(model,3);
 
 	if(show_search){showModels(res);}
 
@@ -315,12 +319,7 @@ bool runSearch(ModelDatabase * database, reglib::Model * model, int number_of_se
 std::set<int> searchset;
 
 void addNewModel(reglib::Model * model){
-printf("%s :: %i\n",__PRETTY_FUNCTION__,__LINE__);
-//	pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr cld = reglib::getPointCloudFromVector(model->points);
-//	viewer->setBackgroundColor(1.0,0.0,1.0);
-//	viewer->removeAllPointClouds();
-//	viewer->addPointCloud<pcl::PointXYZRGBNormal> (cld, pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGBNormal>(cld), "cld");
-//	viewer->spin();
+
 
 
 	reglib::RegistrationRandom *	reg	= new reglib::RegistrationRandom();
@@ -401,6 +400,11 @@ void somaCallback(const std_msgs::String & m){printf("somaCallback(%s)\n",m.data
 void modelCallback(const quasimodo_msgs::model & m){
 	printf("----------%s----------\n",__PRETTY_FUNCTION__);
     quasimodo_msgs::model mod = m;
+
+	if(!verifyKey(m.keyval)){return;}
+	printf("SO I WILL ADD IT!\n");
+	//return;
+
 	reglib::Model * model = quasimodo_brain::getModelFromMSG(mod,true);
 
 //	printf("keyval: %s\n",model->keyval.c_str());
@@ -430,10 +434,6 @@ void clearMem(){
 	for(auto iterator = updaters.begin(); iterator != updaters.end(); iterator++) {delete iterator->second;}
 	if(registration != 0){delete registration;}
 	if(modeldatabase != 0){delete modeldatabase;}
-}
-
-void reloadMongoDB(){
-
 }
 
 int main(int argc, char **argv){

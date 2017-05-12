@@ -108,16 +108,16 @@ double DistanceWeightFunction2::getProb(double d, bool debugg){
 }
 
 double DistanceWeightFunction2::getProbInfront(double d, bool debugg){
-	printf("double DistanceWeightFunction2::getProbInfront(double d){ not implemented\n");
-	exit(0);
+	if(d > 0){return 1-getProb(d);}
+	//printf("double DistanceWeightFunction2::getProbInfront(double d){ not implemented\n");
+	//exit(0);
 	return 0;
 }
 
 
 double DistanceWeightFunction2::getProbInfront(double start, double stop, bool debugg){
-    printf("double DistanceWeightFunction2::getProbInfront(double start, double stop){ not implemented\n");
-    exit(0);
-    return 0;
+	//printf("double DistanceWeightFunction2::getProbInfront(double start, double stop){ not implemented\n");
+	return getProbInfront(start,debugg);
 }
 
 double DistanceWeightFunction2::getNoise(){

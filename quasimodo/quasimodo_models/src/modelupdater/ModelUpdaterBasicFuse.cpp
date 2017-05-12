@@ -63,7 +63,7 @@ FusionResults ModelUpdaterBasicFuse::registerModel(Model * model2, Eigen::Matrix
 		int step = 0.5 + expectedCost/11509168.5;// ~1 sec predicted
 		step = std::max(1,step);
 
-		for(unsigned int ca = 0; ca < todo && ca < 10; ca++){
+		for(unsigned int ca = 0; ca < todo && ca < 5; ca++){
 			printf("ca: %i / %i \n",ca+1,todo);
 			Eigen::Matrix4d pose = fr.candidates[ca];
 

@@ -440,7 +440,7 @@ int setupPriors(int method,float current_occlusions, float current_overlaps, flo
 
     if(method == 6 && valid){
 		float p_obj_given_occlusion = 0.9;
-		float p_obj_given_overlap   = 0.35;
+		float p_obj_given_overlap   = 0.4;
 		float p_obj_given_unknown   = 0.4999;
 
         float bg_p_O = bg_occlusions;
@@ -931,56 +931,111 @@ vector<vector < OcclusionScore > > ModelUpdater::computeOcclusionScore(vector<Mo
 	for(unsigned int i = 0; i < dvec.size(); i++){dstdval += dvec[i]*dvec[i];}
 	dstdval = sqrt(dstdval/double(dvec.size()-1));
 
+	dfunc = new DistanceWeightFunction2();
+	dfunc->f = THRESHOLD;
+	dfunc->p = 0.005;
+
+	nfunc = new DistanceWeightFunction2();
+	nfunc->f = THRESHOLD;
+	nfunc->p = 0.50;
+
 	//	printf("%s :: %5.5f s :: %i\n",__FUNCTION__,getTime()-startTime,__LINE__);startTime = getTime();
 
-	GeneralizedGaussianDistribution * dggdnfunc	= new GeneralizedGaussianDistribution(true,false,false,false,false);
-	dggdnfunc->nr_refineiters					= 1;
-	dggdnfunc->costpen							= -1;
-	dggdnfunc->debugg_print						= false;
-	DistanceWeightFunction2PPR3 * dfuncTMP		= new DistanceWeightFunction2PPR3(dggdnfunc);
-	dfunc = dfuncTMP;
-	dfuncTMP->startreg				= 0.000;
-	dfuncTMP->max_under_mean		= false;
-	dfuncTMP->debugg_print			= debugg;
-	dfuncTMP->bidir					= true;
-	dfuncTMP->zeromean				= false;
-	dfuncTMP->maxp					= 0.9999;
-	dfuncTMP->maxd					= 0.005;//dstdval*10;
-	dfuncTMP->histogram_size		= 100;
-	dfuncTMP->fixed_histogram_size	= true;
-	dfuncTMP->startmaxd				= dfuncTMP->maxd;
-	dfuncTMP->starthistogram_size	= dfuncTMP->histogram_size;
-	dfuncTMP->blurval				= 1.0;
-	dfuncTMP->maxnoise				= dstdval;
-	dfuncTMP->compute_infront		= true;
-	dfuncTMP->ggd					= true;
-	dfuncTMP->reset();
+	//	DistanceWeightFunction2PPR3 * dfuncTMP		= new DistanceWeightFunction2PPR3(dggdnfunc);
+	//	dfunc = dfuncTMP;
+	//	dfuncTMP->startreg				= 0.000;
+	//	dfuncTMP->max_under_mean		= false;
+	//	dfuncTMP->debugg_print			= debugg;
+	//	dfuncTMP->bidir					= true;
+	//	dfuncTMP->zeromean				= false;
+	//	dfuncTMP->maxp					= 0.9999;
+	//	dfuncTMP->maxd					= 0.005;//dstdval*10;
+	//	dfuncTMP->histogram_size		= 100;
+	//	dfuncTMP->fixed_histogram_size	= true;
+	//	dfuncTMP->startmaxd				= dfuncTMP->maxd;
+	//	dfuncTMP->starthistogram_size	= dfuncTMP->histogram_size;
+	//	dfuncTMP->blurval				= 1.0;
+	//	dfuncTMP->maxnoise				= dstdval;
+	//	dfuncTMP->compute_infront		= true;
+	//	dfuncTMP->ggd					= true;
+	//	dfuncTMP->reset();
 
-	dfunc->computeModel(dvec);
+	//	dfunc->computeModel(dvec);
 
-	GeneralizedGaussianDistribution * ggdnfunc	= new GeneralizedGaussianDistribution(true,true);
-	ggdnfunc->nr_refineiters		= 10;
-	ggdnfunc->power					= 1.0;
-	ggdnfunc->costpen				= -1;
-	ggdnfunc->debugg_print			= false;
-	DistanceWeightFunction2PPR3 * nfuncTMP		= new DistanceWeightFunction2PPR3(ggdnfunc);
-	nfunc = nfuncTMP;
-	nfuncTMP->startreg				= 0.05;
-	nfuncTMP->debugg_print			= debugg;
-	nfuncTMP->bidir					= false;
-	nfuncTMP->zeromean				= true;
-	nfuncTMP->maxp					= 0.9999;
-	nfuncTMP->maxd					= 2.0;
-	nfuncTMP->histogram_size		= 200;
-	nfuncTMP->fixed_histogram_size	= true;
-	nfuncTMP->startmaxd				= nfuncTMP->maxd;
-	nfuncTMP->starthistogram_size	= nfuncTMP->histogram_size;
-	nfuncTMP->blurval				= 2.0;
-	nfuncTMP->stdval2				= 1;
-	nfuncTMP->maxnoise				= 1;
-	nfuncTMP->ggd					= true;
-	nfuncTMP->reset();
-	nfunc->computeModel(nvec);
+	//	GeneralizedGaussianDistribution * ggdnfunc	= new GeneralizedGaussianDistribution(true,true);
+	//	ggdnfunc->nr_refineiters		= 10;
+	//	ggdnfunc->power					= 1.0;
+	//	ggdnfunc->costpen				= -1;
+	//	ggdnfunc->debugg_print			= false;
+	//	DistanceWeightFunction2PPR3 * nfuncTMP		= new DistanceWeightFunction2PPR3(ggdnfunc);
+	//	nfunc = nfuncTMP;
+	//	nfuncTMP->startreg				= 0.05;
+	//	nfuncTMP->debugg_print			= debugg;
+	//	nfuncTMP->bidir					= false;
+	//	nfuncTMP->zeromean				= true;
+	//	nfuncTMP->maxp					= 0.9999;
+	//	nfuncTMP->maxd					= 2.0;
+	//	nfuncTMP->histogram_size		= 200;
+	//	nfuncTMP->fixed_histogram_size	= true;
+	//	nfuncTMP->startmaxd				= nfuncTMP->maxd;
+	//	nfuncTMP->starthistogram_size	= nfuncTMP->histogram_size;
+	//	nfuncTMP->blurval				= 2.0;
+	//	nfuncTMP->stdval2				= 1;
+	//	nfuncTMP->maxnoise				= 1;
+	//	nfuncTMP->ggd					= true;
+	//	nfuncTMP->reset();
+	//	nfunc->computeModel(nvec);
+
+
+
+//	GeneralizedGaussianDistribution * dggdnfunc	= new GeneralizedGaussianDistribution(true,false,false,false,false);
+//	dggdnfunc->nr_refineiters					= 1;
+//	dggdnfunc->costpen							= -1;
+//	dggdnfunc->debugg_print						= false;
+//	DistanceWeightFunction2PPR3 * dfuncTMP		= new DistanceWeightFunction2PPR3(dggdnfunc);
+//	dfunc = dfuncTMP;
+//	dfuncTMP->startreg				= 0.000;
+//	dfuncTMP->max_under_mean		= false;
+//	dfuncTMP->debugg_print			= debugg;
+//	dfuncTMP->bidir					= true;
+//	dfuncTMP->zeromean				= false;
+//	dfuncTMP->maxp					= 0.9999;
+//	dfuncTMP->maxd					= 0.005;//dstdval*10;
+//	dfuncTMP->histogram_size		= 100;
+//	dfuncTMP->fixed_histogram_size	= true;
+//	dfuncTMP->startmaxd				= dfuncTMP->maxd;
+//	dfuncTMP->starthistogram_size	= dfuncTMP->histogram_size;
+//	dfuncTMP->blurval				= 1.0;
+//	dfuncTMP->maxnoise				= dstdval;
+//	dfuncTMP->compute_infront		= true;
+//	dfuncTMP->ggd					= true;
+//	dfuncTMP->reset();
+
+//	dfunc->computeModel(dvec);
+
+//	GeneralizedGaussianDistribution * ggdnfunc	= new GeneralizedGaussianDistribution(true,true);
+//	ggdnfunc->nr_refineiters		= 10;
+//	ggdnfunc->power					= 1.0;
+//	ggdnfunc->costpen				= -1;
+//	ggdnfunc->debugg_print			= false;
+//	DistanceWeightFunction2PPR3 * nfuncTMP		= new DistanceWeightFunction2PPR3(ggdnfunc);
+//	nfunc = nfuncTMP;
+//	nfuncTMP->startreg				= 0.05;
+//	nfuncTMP->debugg_print			= debugg;
+//	nfuncTMP->bidir					= false;
+//	nfuncTMP->zeromean				= true;
+//	nfuncTMP->maxp					= 0.9999;
+//	nfuncTMP->maxd					= 2.0;
+//	nfuncTMP->histogram_size		= 200;
+//	nfuncTMP->fixed_histogram_size	= true;
+//	nfuncTMP->startmaxd				= nfuncTMP->maxd;
+//	nfuncTMP->starthistogram_size	= nfuncTMP->histogram_size;
+//	nfuncTMP->blurval				= 2.0;
+//	nfuncTMP->stdval2				= 1;
+//	nfuncTMP->maxnoise				= 1;
+//	nfuncTMP->ggd					= true;
+//	nfuncTMP->reset();
+//	nfunc->computeModel(nvec);
 
 
 	double noiseWeight = dfunc->getNoise();
