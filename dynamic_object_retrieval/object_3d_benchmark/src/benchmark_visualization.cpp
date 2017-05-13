@@ -357,15 +357,23 @@ pair<cv::Mat, vector<cv::Mat> > make_image(std::vector<CloudT::Ptr>& results, co
     return make_pair(visualization, individual_images);
 }
 
+pair<int, int> get_square_sizes_local(int i)
+{
+    int y = int(sqrt(float(i)));
+    int x = ceil(float(i) / float(y));
+
+    return make_pair(y, x);
+}
+
 pair<cv::Mat, vector<cv::Mat> > make_image(vector<SurfelCloudT::Ptr>& results,
                                            const vector<Eigen::Matrix4f, Eigen::aligned_allocator<Eigen::Matrix4f> >& first_transforms)
 {
-    pair<int, int> sizes = get_similar_sizes(results.size());
+    pair<int, int> sizes = get_square_sizes_local(results.size());
 
     int width = 200;
     int height = 200;
 
-    cv::Mat visualization = cv::Mat::zeros(height*sizes.first, width*sizes.second, CV_8UC3);
+    cv::Mat visualization(height*sizes.first, width*sizes.second, CV_8UC3, cv::Scalar(255,255,255));
     vector<cv::Mat> individual_images;
 
     int counter = 0;
@@ -389,12 +397,8 @@ pair<cv::Mat, vector<cv::Mat> > make_image(vector<SurfelCloudT::Ptr>& results,
         Eigen::Vector3f x, y, z;
         z = point.head<3>();
         z.normalize();
-        x = Eigen::Vector3f(0.0f, 0.0f, -1.0f).cross(z);
+        x = Eigen::Vector3f(0.0f, 1.0f, 0.0f).cross(z);
         y = z.cross(x);
-        /*if (y(2) < 0) {
-            x *= -1.0f;
-            y *= -1.0f;
-        }*/
 
         Eigen::Matrix4f T;
         T.setIdentity();

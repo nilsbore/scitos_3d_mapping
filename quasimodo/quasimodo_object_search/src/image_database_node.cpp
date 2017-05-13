@@ -5,8 +5,12 @@
 #include <sensor_msgs/PointCloud2.h>
 #include <pcl_ros/point_cloud.h>
 #include <pcl/visualization/pcl_visualizer.h>
+#include <pcl/common/centroid.h>
+#include <pcl/common/transforms.h>
+#include <pcl/common/common.h>
 #include <object_3d_benchmark/surfel_type.h>
 #include <object_3d_benchmark/benchmark_visualization.h>
+#include <object_3d_benchmark/surfel_renderer.h>
 #include <eigen_conversions/eigen_msg.h>
 
 const mongo::BSONObj EMPTY_BSON_OBJ;

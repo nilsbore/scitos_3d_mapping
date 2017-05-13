@@ -18,6 +18,8 @@ link_directories(${PCL_LIBRARY_DIRS})
 add_definitions(${PCL_DEFINITIONS})
 
 find_package(OpenCV REQUIRED)
+find_package(Qt4 REQUIRED)
+include(${QT_USE_FILE})
 
 ## Uncomment this if the package has a setup.py. This macro ensures
 ## modules and global scripts declared therein get installed
