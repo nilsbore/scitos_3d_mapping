@@ -88,8 +88,9 @@ public:
 
         tie(visualization_image, individual_images) = benchmark_retrieval::make_image(results, first_transforms);
 
-        cv::imshow("Visualization image", visualization_image);
-        cv::waitKey();
+        //cv::imshow("Visualization image", visualization_image);
+        //cv::waitKey();
+        cv::imwrite("quasimodo_db_vis.png", visualization_image);
     }
 
 };
