@@ -46,10 +46,10 @@ int main(int argc, char **argv){
 	reglib::FusionResults fr = mu->registerModel(model1H);
 	if(fr.score > 100){
 		reglib::UpdatedModels ud = mu->fuseData(&fr, model2H, model1H);
-		delete mu;
-		delete reg;
-	}
 
+	}
+	delete mu;
+	delete reg;
 
 	return 0;
 }

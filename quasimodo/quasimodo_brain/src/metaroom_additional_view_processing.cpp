@@ -135,24 +135,18 @@ bool verifySweepOK(std::string path){
 	}
 
 
-	if (path.find("201703") != std::string::npos){
-		//printf("fail: %s\n",path.c_str());
-		return false;
-	}
+	if (path.find("201703") != std::string::npos){return false;}
 
-	if (path.find("201704") != std::string::npos){
-		//printf("fail: %s\n",path.c_str());
-		return false;
-	}
-	printf("good: %s\n",path.c_str());
+	if (path.find("201704") != std::string::npos){return false;}
 
+	return true;
 
 	SimpleXMLParser<pcl::PointXYZRGB> parser;
 	SimpleXMLParser<pcl::PointXYZRGB>::RoomData other_roomData  = parser.loadRoomFromXML(path,std::vector<std::string>(),false,false);
 	std::string other_waypointid = other_roomData.roomWaypointId;
 	printf("waypoint: %s\n",other_waypointid.c_str());
-	//if (other_waypointid.find("ReceptionKitchen") != std::string::npos){
-	if (other_waypointid.find("Kitchen") != std::string::npos){
+	if (other_waypointid.find("ReceptionKitchen") != std::string::npos){
+	//if (other_waypointid.find("Kitchen") != std::string::npos){
 		printf("OK: %s waypoint: %s\n",path.c_str(),other_waypointid.c_str());
 		return true;
 	}else{
@@ -1261,7 +1255,7 @@ void chatterCallback(const std_msgs::String::ConstPtr& msg){
 }
 
 std::vector<reglib::Model *> loadModels(std::string path){
-	printf("loadModels(%s)\n",path.c_str());
+	//printf("loadModels(%s)\n",path.c_str());
 
 	SimpleXMLParser<pcl::PointXYZRGB> parser;
 	SimpleXMLParser<pcl::PointXYZRGB>::RoomData roomData;
@@ -1271,7 +1265,6 @@ std::vector<reglib::Model *> loadModels(std::string path){
 		roomData = parser.loadRoomFromXML(path+"room.xml",std::vector<std::string>(),false,false);
 	}
 	std::string roomLogName = roomData.roomLogName;
-	printf("roomLogName: %s\n",roomLogName.c_str());
 
 	std::vector<reglib::Model *> models;
 	int slash_pos = path.find_last_of("/");
@@ -1280,14 +1273,12 @@ std::vector<reglib::Model *> loadModels(std::string path){
 	std::vector<reglib::RGBDFrame *> frames;
 	std::vector<Eigen::Matrix4d> poses;
 	bool ret = quasimodo_brain::readViewXML(roomLogName, sweep_folder+"ViewGroup.xml",frames,poses,false);
-	printf("ret: %i\n",ret);
 	if(!ret){
 		reglib::Model * fullmodel = getAVMetaroom(path,true,"");
 		fullmodel->fullDelete();
 		delete fullmodel;
 
 		ret = quasimodo_brain::readViewXML(roomLogName, sweep_folder+"ViewGroup.xml",frames,poses,false);
-		printf("ret: %i\n",ret);
 	}
 
 	int objcounter = -1;
@@ -1301,8 +1292,7 @@ std::vector<reglib::Model *> loadModels(std::string path){
 
 		reglib::Model * mod = new reglib::Model();
 		mod->keyval = roomLogName+"_object_"+std::to_string(objcounter);
-		printf("object label: %s\n",mod->keyval.c_str());
-
+		//printf("Object: %s\n",mod->keyval.c_str()); //if(!quasimodo_brain::fileExists(std::string(buf))){break;}
 		QXmlStreamReader* xmlReader = new QXmlStreamReader(&file);
 
 		while (!xmlReader->atEnd() && !xmlReader->hasError()){
@@ -1330,7 +1320,6 @@ std::vector<reglib::Model *> loadModels(std::string path){
 						QString depthpath = attributes.value("image_number").toString();
 						number = atoi(depthpath.toStdString().c_str());
 					}else{break;}
-                    printf("number: %i frames.size() %i\n",number,frames.size());
 					mod->frames.push_back(frames[number]->clone());
 					mod->relativeposes.push_back(poses[number]);
 					mod->modelmasks.push_back(new reglib::ModelMask(mask));
@@ -1347,28 +1336,21 @@ std::vector<reglib::Model *> loadModels(std::string path){
 }
 
 void addModelToModelServer(reglib::Model * model){
-    printf("start void addModelToModelServer\n");
     for(unsigned int i = 0; i < model_pubs.size(); i++){
-        printf("sending model\n");
         model_pubs[i].publish(quasimodo_brain::getModelMSG(model));
     }
 	ros::spinOnce();
-    printf("stop  void addModelToModelServer\n");
-
-	//printf("EXIT %i from %s\n",__LINE__,__FILE__);exit(0);
 }
 
 void sendMetaroomToServer(std::string path){
 	//printf("sendMetaroomToServer(%s)\n",path.c_str());
 	if(!verifySweepOK(path)){return;}
-	printf("OK!\n");
 
 	quasimodo_brain::cleanPath(path);
 	int slash_pos = path.find_last_of("/");
 	std::string sweep_folder = path.substr(0, slash_pos) + "/";
 	QStringList sendoutput = QDir(sweep_folder.c_str()).entryList(QStringList("sendoutput.txt"));
 
-	printf("send %i\n",sendoutput.size());
 	if(resend|| sendoutput.size() == 0){
 		std::ofstream myfile;
 		myfile.open (sweep_folder+"sendoutput.txt");
@@ -1377,9 +1359,15 @@ void sendMetaroomToServer(std::string path){
 
 		std::vector<reglib::Model *> models = loadModels(path);
 		for(unsigned int i = 0; i < models.size(); i++){
-			addModelToModelServer(models[i]);
-			models[i]->fullDelete();
-			delete models[i];
+			reglib::Model * model = models[i];
+			model->recomputeModelPoints();
+			printf("Object: %s -> ",model->keyval.c_str());
+			printf("scores: %f %f %f\n",model->getScore(3), model->getScore(2), model->getScore(1));
+			if(model->getScore(3) > 1000 && model->getScore(2) > 250 && model->getScore(1) > 1000){
+				addModelToModelServer(model);
+			}
+			model->fullDelete();
+			delete model;
 		}
 	}
 

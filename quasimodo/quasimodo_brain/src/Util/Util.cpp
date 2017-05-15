@@ -388,8 +388,10 @@ void guaranteeFolder(std::string filepath){
 }
 
 bool fileExists(std::string path){
+	printf("fileExists: %s\n",path.c_str());
 	QFile file(path.c_str());
 	if (file.exists()){
+		printf("the file exists\n");
 		return true;
 	}else{
 		return false;
