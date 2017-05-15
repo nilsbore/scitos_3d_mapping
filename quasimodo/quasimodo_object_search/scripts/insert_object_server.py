@@ -79,6 +79,7 @@ def insert_model_cb(sreq):
     now = datetime.now()
     new_obj.inserted_at = now.strftime("%Y-%m-%d %H:%M:%S")
     new_obj.transforms = local_poses
+    new_obj.nbr_observations = sreq.model.nbr_observations
 
     new_obj_depths = image_array()
     new_obj_images = image_array()
