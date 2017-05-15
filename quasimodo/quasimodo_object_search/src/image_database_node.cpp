@@ -12,6 +12,8 @@
 #include <object_3d_benchmark/benchmark_visualization.h>
 #include <object_3d_benchmark/surfel_renderer.h>
 #include <eigen_conversions/eigen_msg.h>
+#include <cv_bridge/cv_bridge.h>
+#include <sensor_msgs/image_encodings.h>
 
 const mongo::BSONObj EMPTY_BSON_OBJ;
 
@@ -27,10 +29,14 @@ public:
     ros::NodeHandle n;
     mongodb_store::MessageStoreProxy db_client;
     ros::Subscriber sub;
+    ros::Publisher image_pub;
     size_t counter;
 
     visualization_server() : db_client(n, "quasimodo", "world_state"), counter(0)
     {
+        string image_output = "/quasimodo_db_visualization";
+
+        image_pub = n.advertise<sensor_msgs::Image>(image_output, 1, true);
 
         sub = n.subscribe("/model/added_to_db", 1, &visualization_server::callback, this);
 
@@ -89,6 +95,13 @@ public:
         vector<cv::Mat> individual_images;
 
         tie(visualization_image, individual_images) = benchmark_retrieval::make_image(results, first_transforms, nbr_observations);
+
+        cv_bridge::CvImagePtr cv_pub_ptr(new cv_bridge::CvImage);
+        cv_pub_ptr->image = visualization_image;
+        cv_pub_ptr->encoding = "bgr8";
+        sensor_msgs::Image image_msg = *cv_pub_ptr->toImageMsg();
+
+        image_pub.publish(image_msg);
 
         //cv::imshow("Visualization image", visualization_image);
         //cv::waitKey();
