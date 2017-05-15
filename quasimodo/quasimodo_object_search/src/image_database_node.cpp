@@ -47,6 +47,7 @@ public:
 
         vector<SurfelCloudT::Ptr> results;
         vector<Eigen::Matrix4f, Eigen::aligned_allocator<Eigen::Matrix4f> > first_transforms;
+        vector<string> nbr_observations;
         for (boost::shared_ptr<quasimodo_msgs::fused_world_state_object>& msg : messages) {
             if (!msg->removed_at.empty()) {
                 continue;
@@ -79,6 +80,7 @@ public:
 
             results.push_back(cloud);
             first_transforms.push_back(T);
+            nbr_observations.push_back(to_string(msg->nbr_observations));
 
             ++counter;
         }
@@ -86,7 +88,7 @@ public:
         cv::Mat visualization_image;
         vector<cv::Mat> individual_images;
 
-        tie(visualization_image, individual_images) = benchmark_retrieval::make_image(results, first_transforms);
+        tie(visualization_image, individual_images) = benchmark_retrieval::make_image(results, first_transforms, nbr_observations);
 
         //cv::imshow("Visualization image", visualization_image);
         //cv::waitKey();
